@@ -17,6 +17,11 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.WorkDoneBy
     ];
 
+    private IReadOnlyList<JiraIssue> issues = new List<JiraIssue>();
+
+    private DateTimeOffset startDate = DateTimeOffset.Now;
+    private DateTimeOffset endDate = DateTimeOffset.Now;
+
     public string Description => "Export to a Google Sheet the last month of tasks through Engineering and the split of work type.";
 
     public string Key => TaskKey;
@@ -26,17 +31,22 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine();
 
-        var startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
-        var endDate = DateUtils.EndOfMonth(startDate);
-        var month = startDate.ToString("MMM");
+        await CreateMonthTicketSheet();
+    }
+
+    private async Task CreateMonthTicketSheet()
+    {
+        this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
+        this.endDate = DateUtils.EndOfMonth(this.startDate);
+        var month = this.startDate.ToString("MMM");
         var jql =
-            $"project in (JAVPM,ENG) and type != EPIC  AND statusCategoryChangedDate >= '{startDate:yyyy-MM-dd}' and statusCategory = Done  and  statusCategoryChangedDate < '{endDate:yyyy-MM-dd}'";
+            $"project in (JAVPM,ENG) and type != EPIC  AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done  and  statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
         Console.WriteLine(jql);
 
-        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
+        this.issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}_{month}_Issues");
-        var fileName = exporter.Export(issues);
+        var fileName = exporter.Export(this.issues);
         await sheetUpdater.Open(GoogleSheetId);
         var sheetName = $"{month} JiraIssues";
         if (await sheetUpdater.DoesSheetExist(GoogleSheetId, sheetName))
