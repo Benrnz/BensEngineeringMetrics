@@ -2,6 +2,12 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
+/// <summary>
+///     See https://javlnsupport.atlassian.net/wiki/spaces/DEVELOPMEN/pages/1284243457/Engineering+Tasks+Summary+-+November+2025
+/// </summary>
+/// <param name="runner"></param>
+/// <param name="sheetUpdater"></param>
+/// <param name="exporter"></param>
 public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1_ANmhfs-kjyCwntbeS2lM0YYOpeBgCDoasZz5UZpl2g";
@@ -17,10 +23,11 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.WorkDoneBy
     ];
 
+    private DateTimeOffset endDate = DateTimeOffset.Now;
+
     private IReadOnlyList<JiraIssue> issues = new List<JiraIssue>();
 
     private DateTimeOffset startDate = DateTimeOffset.Now;
-    private DateTimeOffset endDate = DateTimeOffset.Now;
 
     public string Description => "Export to a Google Sheet the last month of tasks through Engineering and the split of work type.";
 

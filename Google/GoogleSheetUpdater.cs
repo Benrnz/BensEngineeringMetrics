@@ -6,7 +6,7 @@ using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Util.Store;
 using File = System.IO.File;
 
-namespace BensEngineeringMetrics;
+namespace BensEngineeringMetrics.Google;
 
 public class GoogleSheetUpdater : IWorkSheetUpdater
 {
