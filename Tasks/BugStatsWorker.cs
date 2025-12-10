@@ -49,13 +49,13 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             await sheetUpdater.Open(googleSheetId);
             await ExportBugStatsCodeAreas(jiras);
-            if (await sheetUpdater.DoesSheetExist(googleSheetId, "CodeAreasExclEnvest"))
+            if (await sheetUpdater.DoesSheetExist("CodeAreasExclEnvest"))
             {
                 await ExportBugStatsCodeAreasExclEnvest(jiras);
             }
 
             await ExportBugStatsRecentDevelopment(jiras);
-            if (await sheetUpdater.DoesSheetExist(googleSheetId, "RecentDevExclEnvest"))
+            if (await sheetUpdater.DoesSheetExist("RecentDevExclEnvest"))
             {
                 await ExportBugStatsRecentDevelopmentExclEnvest(jiras);
             }

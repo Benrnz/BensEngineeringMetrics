@@ -24,6 +24,7 @@ public static class Program
             services.AddTransient<IWorkSheetReader, GoogleSheetReader>();
             services.AddSingleton<BugStatsWorker>();
             services.AddTransient<ISlackClient, SlackClient>();
+            services.AddTransient<ISheetPieChart, GooglePieChart>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())
