@@ -9,6 +9,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 {
     private const string GoogleSheetId = "1_ANmhfs-kjyCwntbeS2lM0YYOpeBgCDoasZz5UZpl2g";
     private const string TaskKey = "ENG_TASK_ANALYSIS";
+    private const string PiechartSheetTab = "Latest Piecharts";
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -35,8 +36,20 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine();
 
+        // Delete tab to clear previous data
+        await sheetUpdater.Open(GoogleSheetId);
+        sheetUpdater.DeleteSheet(PiechartSheetTab);
+        sheetUpdater.AddSheet(PiechartSheetTab);
+        await sheetUpdater.SubmitBatch();
+
+        await sheetUpdater.Open(GoogleSheetId);
+        await piecharter.Open(GoogleSheetId, sheetUpdater);
+
         await CreatePieChart();
         await CreateMonthTicketSheet();
+
+        await sheetUpdater.SubmitBatch();
+        await piecharter.SubmitBatch();
     }
 
     private async Task CreateMonthTicketSheet()
@@ -52,7 +65,6 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}_{month}_Issues");
         var fileName = exporter.Export(this.issues);
-        await sheetUpdater.Open(GoogleSheetId);
         var sheetName = $"{month} JiraIssues";
         if (await sheetUpdater.DoesSheetExist(sheetName))
         {
@@ -61,15 +73,15 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         else
         {
             sheetUpdater.AddSheet(sheetName);
-            await sheetUpdater.SubmitBatch();
         }
 
         await sheetUpdater.ImportFile($"{sheetName}!A1", fileName);
-        await sheetUpdater.SubmitBatch();
     }
 
     private async Task CreatePieChart()
     {
+        sheetUpdater.ClearRange($"{PiechartSheetTab}");
+
         var chartData = new List<IList<object?>>
         {
             new List<object?> { "Category", "Percentage" }, // Header
@@ -79,9 +91,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             new List<object?> { "Other", 1.0 }
         };
 
-        await piecharter.Open(GoogleSheetId);
-        await piecharter.InsertPieChart("'Latest Piecharts'!A1", chartData, 0, 0, "Engineering Task Types - Last Month");
-        await piecharter.SubmitBatch();
+        await piecharter.InsertPieChart($"'{PiechartSheetTab}'!A1", chartData, 0, 0, "Engineering Task Types - Last Month");
     }
 
     private record JiraIssue(

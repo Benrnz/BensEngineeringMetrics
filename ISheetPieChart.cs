@@ -16,7 +16,8 @@ public interface ISheetPieChart
     ///     Initialise the tool and authenticate with the API.
     /// </summary>
     /// <param name="sheetId">The sheet identifier. ie the Google Sheet ID.</param>
-    Task Open(string sheetId);
+    /// <param name="sheetUpdater">An optional sheetUpdater can be provided to ensure the <see cref="ISheetPieChart" /> instance doesn't create its own.</param>
+    Task Open(string sheetId, IWorkSheetUpdater? sheetUpdater = null);
 
     /// <summary>
     ///     Submit the batch of requests to edit and update charts in the Workbook.

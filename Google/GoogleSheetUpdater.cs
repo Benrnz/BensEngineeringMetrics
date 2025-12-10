@@ -264,6 +264,12 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
     public async Task SubmitBatch()
     {
+        if (!this.pendingApplyDateFormats.Any() && !this.pendingClears.Any() && !this.pendingDeleteSheetNames.Any() && !this.pendingSpreadsheetRequests.Any() && !this.pendingValueUpdates.Any())
+        {
+            // Nothing to do
+            return;
+        }
+
         using var service = AuthHelper.InitiateService(this.googleSheetId, this.credential!);
 
         await SendApplyClearRangeRequests(service);

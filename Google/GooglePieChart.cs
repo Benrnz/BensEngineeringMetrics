@@ -10,8 +10,9 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
     private readonly Dictionary<string, int> sheetNamesToIds = new();
     private UserCredential? credential;
     private string? googleSheetId;
+    private IWorkSheetUpdater mySheetUpdater = sheetUpdater;
 
-    public async Task Open(string sheetId)
+    public async Task Open(string sheetId, IWorkSheetUpdater? sheetUpdater1 = null)
     {
         if (!string.IsNullOrEmpty(this.googleSheetId) && this.credential is not null)
         {
@@ -20,7 +21,13 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
         }
 
         Reset();
-        await sheetUpdater.Open(sheetId);
+        if (sheetUpdater1 is not null)
+        {
+            // Sync with provided sheet updater, rather than use a new one.
+            this.mySheetUpdater = sheetUpdater1;
+        }
+
+        await this.mySheetUpdater.Open(sheetId);
         this.googleSheetId = sheetId;
         await Authenticate();
     }
@@ -29,7 +36,7 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
     {
         using var service = AuthHelper.InitiateService(this.googleSheetId, this.credential!);
 
-        await sheetUpdater.SubmitBatch();
+        await this.mySheetUpdater.SubmitBatch();
         await ProcessBatchRequests();
 
         Reset();
@@ -39,7 +46,7 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
     {
         ValidateSheetAndRange(sheetAndRange, out var sheetTab);
 
-        sheetUpdater.EditSheet(sheetAndRange, sourceData, true);
+        this.mySheetUpdater.EditSheet(sheetAndRange, sourceData, true);
 
         var sheetTabId = await GetSheetIdByName(sheetTab);
 
@@ -124,7 +131,7 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
         if (sheetName.StartsWith('\'') && sheetName.EndsWith('\''))
         {
             // Remove surrounding single quotes
-            sheetName = sheetName[1..^1];
+            sheetName = sheetName.Trim('\'');
         }
 
         using var service = AuthHelper.InitiateService(this.googleSheetId, this.credential!);
@@ -158,7 +165,7 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
     {
         this.credential = null;
         this.googleSheetId = null;
-        if (sheetUpdater is GoogleSheetUpdater googleSheetUpdater)
+        if (this.mySheetUpdater is GoogleSheetUpdater googleSheetUpdater)
         {
             googleSheetUpdater.Reset();
         }
