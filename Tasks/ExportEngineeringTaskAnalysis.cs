@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using BensEngineeringMetrics.Jira;
+﻿using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
@@ -19,7 +18,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.Created,
         JiraFields.UpdatedDate,
         JiraFields.StoryPoints,
-        JiraFields.WorkDoneBy
+        JiraFields.WorkDoneBy,
+        JiraFields.Labels
     ];
 
     private DateTimeOffset endDate = DateTimeOffset.Now;
@@ -37,6 +37,9 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine();
 
+        this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
+        this.endDate = DateUtils.EndOfMonth(this.startDate);
+
         await sheetUpdater.Open(GoogleSheetId);
 
         await CreateMonthTicketSheet();
@@ -47,8 +50,6 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
     private async Task CreateMonthTicketSheet()
     {
-        this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
-        this.endDate = DateUtils.EndOfMonth(this.startDate);
         var month = this.startDate.ToString("MMM");
         var jql =
             $"project in (JAVPM,ENG) and type != EPIC  AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done  and  statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
@@ -77,24 +78,9 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         var chartData = new List<IList<object?>>
         {
-            new List<object?> { "Date Range", "1-Nov-25", "1-Dec-25" },
+            new List<object?> { "Date Range", this.startDate.ToString("d-MMM-yy"), this.endDate.ToString("d-MMM-yy") }
         };
         sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A1", chartData, true);
-
-        // var chartData = new List<IList<object?>>
-        // {
-        //     new List<object?> { "Date Range", "1-Nov-25", "1-Dec-25" },
-        //     new List<object?> { "Ticket Type", "Percentage", "Count" },
-        //     new List<object?> { "Story", 53.7/100, 165 },
-        //     new List<object?> { "Bug", 31.9/100, 98 },
-        //     new List<object?> { "Improvement", 9.8/100, 30 },
-        //     new List<object?> { "Sub-Task", 1.6/100, 5 },
-        //     new List<object?> { "Customer Change Request", 1.0/100, 3 },
-        //     new List<object?> { "Functional Requirement", 1.0/100, 3 },
-        //     new List<object?> { "Non-Functional Requirement", 0.7/100, 2 },
-        //     new List<object?> { "Schema Task", 0.3/100, 1 },
-        //     new List<object?> { "Total", null, 307 }
-        // };
 
         var totalCount = (double)this.issues.Count;
         if (totalCount == 0)
@@ -104,6 +90,41 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         }
 
         var totalPoints = this.issues.Sum(i => i.StoryPoints == 0 ? 1 : i.StoryPoints);
+        InsertTicketTypeAnalysisTable(totalCount, totalPoints);
+        InsertEngineeringExcellenceTable(totalCount, totalPoints);
+    }
+
+    private void InsertEngineeringExcellenceTable(double totalCount, double totalPoints)
+    {
+        var data = this.issues
+            .Where(i => i.Labels.Contains(Constants.EngineeringExcellenceLabel))
+            .ToList();
+        var excellenceCount = (double)data.Count;
+        var excellencePoints = data.Sum(i => i.StoryPoints == 0 ? 1 : i.StoryPoints);
+
+        data = this.issues
+            .Where(i => i.IssueType == Constants.BugType)
+            .ToList();
+        var bugCount = (double)data.Count;
+        var bugPoints = data.Sum(i => i.StoryPoints == 0 ? 1 : i.StoryPoints);
+
+        var roadMapCount = totalCount - excellenceCount - bugCount;
+        var roadMapPoints = totalPoints - excellencePoints - bugPoints;
+
+        List<IList<object?>> chartData =
+        [
+            new List<object?> { "Ticket Type", "Percentage", "Ticket Count", "Story Points Percentage" },
+            new List<object?> { "Engineering Excellence", excellenceCount / totalCount, excellenceCount, excellencePoints / totalPoints },
+            new List<object?> { "Bugs", bugCount / totalCount, bugCount, bugPoints / totalPoints },
+            new List<object?> { "Product Roadmap", roadMapCount / totalCount, roadMapCount, roadMapPoints / totalPoints }
+        ];
+
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A49", chartData, true);
+        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 48, 49, 0, 4);
+    }
+
+    private void InsertTicketTypeAnalysisTable(double totalCount, double totalPoints)
+    {
         var data = this.issues
             .GroupBy(i => i.IssueType)
             .Select<IGrouping<string, JiraIssue>, EngineeringTicketTypeChart>(g =>
@@ -116,7 +137,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             .OrderByDescending(g => g.Count)
             .ToList();
 
-        chartData = [new List<object?> { "Ticket Type", "Percentage", "Ticket Count", "Story Points Percentage" }];
+        List<IList<object?>> chartData = [new List<object?> { "Ticket Type", "Percentage", "Ticket Count", "Story Points Percentage" }];
 
         foreach (var group in data)
         {
@@ -125,15 +146,15 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 group.TicketType,
                 group.Percentage,
                 group.Count,
-                group.StoryPointsPercentage,
+                group.StoryPointsPercentage
             });
         }
 
         chartData.Add(new List<object?> { "Total", null, totalCount, totalPoints });
 
-        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A2", chartData, true);
-        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 1, 2, 0, 4);
-        sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count-1, chartData.Count, 0, 4);
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A3", chartData, true);
+        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 2, 3, 0, 4);
+        sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 1, chartData.Count + 2, 0, 4);
     }
 
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
@@ -145,11 +166,13 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         DateTimeOffset Created,
         DateTimeOffset UpdatedDate,
         double StoryPoints,
-        string WorkDoneBy)
+        string WorkDoneBy,
+        string[] Labels)
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
             var workDoneBy = JiraFields.WorkDoneBy.Parse(d);
+            var labels = (string)JiraFields.Labels.Parse(d);
 
             return new JiraIssue(
                 JiraFields.Key.Parse(d),
@@ -158,7 +181,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.Created.Parse(d),
                 JiraFields.UpdatedDate.Parse(d),
                 JiraFields.StoryPoints.Parse(d),
-                workDoneBy);
+                workDoneBy,
+                labels.Split(','));
         }
     }
 }

@@ -8,6 +8,7 @@ public static class Constants
     public const string BugTypeUat = "UAT";
     public const string CodeFixLast6 = "Code Fix - Bug from recent development (past 6 months)";
     public const string DoneStatus = "Done";
+    public const string EngineeringExcellenceLabel = "Engineering-Excellence";
     public const string Envest = "Envest";
     public const string EpicType = "Epic";
     public const string HasDevTeamEstimate = "Dev Team Estimate";
