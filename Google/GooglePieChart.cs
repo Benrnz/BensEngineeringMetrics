@@ -43,7 +43,7 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
         Reset();
     }
 
-    public async Task InsertPieChart(string sheetAndRange, IList<IList<object?>> sourceData, int dataColumn, int dataRow, string chartTitle, string[]? colors = null)
+    public async Task InsertPieChart(string sheetAndRange, IList<IList<object?>> sourceData, int dataColumn, int dataRow, string chartTitle, System.Drawing.Color[]? colors = null)
     {
         ValidateSheetAndRange(sheetAndRange, out var sheetTab);
 
@@ -85,34 +85,21 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
             for (var i = 0; i < dataPointCount; i++)
             {
                 var colorIndex = i % colors.Length; // Cycle through colors if fewer colors than data points
-                var color = colors[colorIndex];
-                var rgbColor = ParseColor(color);
+                var rgbColor = colors[colorIndex].ToGoogleColor();
 
-                if (rgbColor is not null)
+                dataPoints.Add(new
                 {
-                    dataPoints.Add(new
+                    ColorStyle = new ColorStyle
                     {
-                        ColorStyle = new ColorStyle
-                        {
-                            RgbColor = new Color { Red = (float?)rgbColor.Value.Red, Green = (float?)rgbColor.Value.Green, Blue = (float?)rgbColor.Value.Blue }
-                        }
-                    });
-                }
-                else
-                {
-                    // If color parsing fails, add a data point without color (will use default)
-                    dataPoints.Add(new object());
-                }
+                        RgbColor = new Color { Red = rgbColor.Red, Green = rgbColor.Green, Blue = rgbColor.Blue }
+                    }
+                });
             }
 
             if (dataPoints.Any())
             {
                 var dataPointOverridesProperty = typeof(ChartData).GetProperty("DataPointOverrides");
-                if (dataPointOverridesProperty is not null)
-                {
-                    try { dataPointOverridesProperty.SetValue(valueSource, dataPoints); }
-                    catch { }
-                }
+                dataPointOverridesProperty?.SetValue(valueSource, dataPoints);
             }
         }
 
@@ -187,47 +174,6 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
 
         // Sheet name not found
         return null;
-    }
-
-    /// <summary>
-    ///     Parses a color string (hex format like "#FF0000" or "#F00") and converts it to RGB color format expected by Google Sheets API (0-1 normalized).
-    /// </summary>
-    /// <param name="color">Color string in hex format (e.g., "#FF0000", "#F00", "FF0000")</param>
-    /// <returns>RgbColor object with normalized RGB values (0-1), or null if parsing fails</returns>
-    private static (double Red, double Green, double Blue)? ParseColor(string color)
-    {
-        if (string.IsNullOrWhiteSpace(color))
-        {
-            return null;
-        }
-
-        // Remove # if present
-        var hexColor = color.TrimStart('#');
-
-        // Handle short hex format (#RGB -> #RRGGBB)
-        if (hexColor.Length == 3)
-        {
-            hexColor = $"{hexColor[0]}{hexColor[0]}{hexColor[1]}{hexColor[1]}{hexColor[2]}{hexColor[2]}";
-        }
-
-        // Validate hex format
-        if (hexColor.Length != 6 || !Regex.IsMatch(hexColor, "^[0-9A-Fa-f]{6}$"))
-        {
-            return null;
-        }
-
-        try
-        {
-            var red = Convert.ToInt32(hexColor.Substring(0, 2), 16) / 255.0;
-            var green = Convert.ToInt32(hexColor.Substring(2, 2), 16) / 255.0;
-            var blue = Convert.ToInt32(hexColor.Substring(4, 2), 16) / 255.0;
-
-            return (red, green, blue);
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private async Task ProcessBatchRequests()

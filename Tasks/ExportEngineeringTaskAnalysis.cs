@@ -92,14 +92,12 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             new List<object?> { "Other", 1.0 }
         };
 
-        Color[] colours  = [Color.Orange, Color.DarkRed, Color.DarkGreen, Color.Gray];
-
         await piecharter.InsertPieChart(
             $"'{PiechartSheetTab}'!A1",
             chartData,
             0, 0,
             "Engineering Task Types - Last Month",
-            ["#FF0000", "#00FF00", "#0000FF", "#FFFF00"]);
+            [Color.DarkRed, Color.DarkBlue, Color.DarkGreen, Color.Gray]);
     }
 
     private record JiraIssue(

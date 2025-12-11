@@ -11,7 +11,7 @@ internal static class AuthHelper
 
     public static async Task<UserCredential?> Authenticate(string clientSecretsFile)
     {
-        Console.WriteLine("Authenticating with Google Sheets API...");
+        //Console.WriteLine("Authenticating with Google Sheets API...");
         try
         {
             // Load the client secrets file for authentication.
