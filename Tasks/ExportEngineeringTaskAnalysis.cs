@@ -1,4 +1,5 @@
-﻿using BensEngineeringMetrics.Jira;
+﻿using System.Drawing;
+using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
@@ -91,7 +92,14 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             new List<object?> { "Other", 1.0 }
         };
 
-        await piecharter.InsertPieChart($"'{PiechartSheetTab}'!A1", chartData, 0, 0, "Engineering Task Types - Last Month");
+        Color[] colours  = [Color.Orange, Color.DarkRed, Color.DarkGreen, Color.Gray];
+
+        await piecharter.InsertPieChart(
+            $"'{PiechartSheetTab}'!A1",
+            chartData,
+            0, 0,
+            "Engineering Task Types - Last Month",
+            ["#FF0000", "#00FF00", "#0000FF", "#FFFF00"]);
     }
 
     private record JiraIssue(

@@ -10,7 +10,11 @@ public interface ISheetPieChart
     /// <param name="dataColumn">The column, 0-based index to insert the data at.</param>
     /// <param name="dataRow">The row, 0-based index to insert the data at.</param>
     /// <param name="chartTitle">The chart title</param>
-    Task InsertPieChart(string sheetAndRange, IList<IList<object?>> sourceData, int dataColumn, int dataRow, string chartTitle);
+    /// <param name="colors">
+    ///     Optional array of colors to use for pie chart slices. Colors should be in hex format (e.g., "#FF0000") or RGB format (e.g., "rgb(255,0,0)"). If provided, colors will be applied
+    ///     to slices in order.
+    /// </param>
+    Task InsertPieChart(string sheetAndRange, IList<IList<object?>> sourceData, int dataColumn, int dataRow, string chartTitle, string[]? colors = null);
 
     /// <summary>
     ///     Initialise the tool and authenticate with the API.
