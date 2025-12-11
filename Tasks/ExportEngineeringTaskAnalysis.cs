@@ -90,8 +90,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         }
 
         var totalPoints = this.issues.Sum(i => i.StoryPoints == 0 ? 1 : i.StoryPoints);
-        InsertTicketTypeAnalysisTable(totalCount, totalPoints);
         InsertEngineeringExcellenceTable(totalCount, totalPoints);
+        InsertTicketTypeAnalysisTable(totalCount, totalPoints);
     }
 
     private void InsertEngineeringExcellenceTable(double totalCount, double totalPoints)
@@ -119,8 +119,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             new List<object?> { "Product Roadmap", roadMapCount / totalCount, roadMapCount, roadMapPoints / totalPoints }
         ];
 
-        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A49", chartData, true);
-        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 48, 49, 0, 4);
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A3", chartData, true);
+        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 2, 3, 0, 4);
     }
 
     private void InsertTicketTypeAnalysisTable(double totalCount, double totalPoints)
@@ -152,9 +152,9 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         chartData.Add(new List<object?> { "Total", null, totalCount, totalPoints });
 
-        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A3", chartData, true);
-        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 2, 3, 0, 4);
-        sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 1, chartData.Count + 2, 0, 4);
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A26", chartData, true);
+        sheetUpdater.BoldCellsFormat(PiechartSheetTab, 25, 26, 0, 4);
+        sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 25 - 1, chartData.Count + 25, 0, 4);
     }
 
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
