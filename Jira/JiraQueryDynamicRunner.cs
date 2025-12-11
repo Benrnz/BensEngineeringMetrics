@@ -174,6 +174,11 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             list.Add(DeserializeToDynamic(item, propertyName));
         }
 
+        if (string.IsNullOrEmpty(childField))
+        {
+            return string.Join(",", list);
+        }
+
         var flattened = list
             .OfType<IDictionary<string, object>>()
             .Select(obj => obj.TryGetValue(childField, out var value) ? value : null)

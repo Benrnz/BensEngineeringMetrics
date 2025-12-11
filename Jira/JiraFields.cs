@@ -18,6 +18,7 @@ public static class JiraFields
     public static readonly FieldMapping<bool> IsReqdForGoLive = new FieldMappingWithParser<bool> { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping<string> IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
     public static readonly FieldMapping<string> Key = new FieldMappingWithParser<string> { Field = "key", Alias = "Key", Parser = ParseKey };
+    public static readonly FieldMapping<string> Labels = new() { Field = "labels", Alias = "Labels" };
     public static readonly FieldMapping<long> OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
     public static readonly FieldMapping<string> ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping<double> PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
