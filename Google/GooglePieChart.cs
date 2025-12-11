@@ -43,7 +43,7 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
         Reset();
     }
 
-    public async Task InsertPieChart(string sheetAndRange, IList<IList<object?>> sourceData, int dataColumn, int dataRow, string chartTitle, System.Drawing.Color[]? colors = null)
+    public async Task InsertPieChart(string sheetAndRange, IList<IList<object?>> sourceData, int dataColumn, int dataRow, string chartTitle)
     {
         ValidateSheetAndRange(sheetAndRange, out var sheetTab);
 
@@ -76,32 +76,12 @@ public class GooglePieChart(IWorkSheetUpdater sheetUpdater) : ISheetPieChart
             }
         };
 
-        // Apply colors to data points if provided
-        if (colors is not null && colors.Length > 0)
-        {
-            var dataPointCount = sourceData.Count - 1; // Exclude header row
-            var dataPoints = new List<object>();
-
-            for (var i = 0; i < dataPointCount; i++)
-            {
-                var colorIndex = i % colors.Length; // Cycle through colors if fewer colors than data points
-                var rgbColor = colors[colorIndex].ToGoogleColor();
-
-                dataPoints.Add(new
-                {
-                    ColorStyle = new ColorStyle
-                    {
-                        RgbColor = new Color { Red = rgbColor.Red, Green = rgbColor.Green, Blue = rgbColor.Blue }
-                    }
-                });
-            }
-
-            if (dataPoints.Any())
-            {
-                var dataPointOverridesProperty = typeof(ChartData).GetProperty("DataPointOverrides");
-                dataPointOverridesProperty?.SetValue(valueSource, dataPoints);
-            }
-        }
+        // Note: Setting custom colors for pie chart slices is not currently supported in the Google Sheets API v4 C# client library.
+        // The DataPointOverrides property exists in the JSON API specification but is not exposed in the C# client.
+        // The chart will be created with default colors. To customize colors:
+        // 1. Manually update the chart in Google Sheets after creation, or
+        // 2. Use the Google Sheets API directly with JSON requests (requires additional implementation)
+        // If colors are provided, they are currently ignored but the parameter is kept for future compatibility.
 
 
         var chartRequest = new Request

@@ -96,8 +96,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             $"'{PiechartSheetTab}'!A1",
             chartData,
             0, 0,
-            "Engineering Task Types - Last Month",
-            [Color.DarkRed, Color.DarkBlue, Color.DarkGreen, Color.Gray]);
+            "Engineering Task Types - Last Month");
     }
 
     private record JiraIssue(
