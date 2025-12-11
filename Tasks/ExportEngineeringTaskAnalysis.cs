@@ -37,18 +37,17 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine();
 
-        this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
-        this.endDate = DateUtils.EndOfMonth(this.startDate);
+        ParseArguments(args);
 
         await sheetUpdater.Open(GoogleSheetId);
 
-        await CreateMonthTicketSheet();
+        await GetDataAndCreateMonthTicketSheet();
         CreatePieChartData();
 
         await sheetUpdater.SubmitBatch();
     }
 
-    private async Task CreateMonthTicketSheet()
+    private async Task GetDataAndCreateMonthTicketSheet()
     {
         var month = this.startDate.ToString("MMM");
         var jql =
@@ -155,6 +154,40 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A26", chartData, true);
         sheetUpdater.BoldCellsFormat(PiechartSheetTab, 25, 26, 0, 4);
         sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 25 - 1, chartData.Count + 25, 0, 4);
+    }
+
+    private void ParseArguments(string[] args)
+    {
+        if (args.Length <= 1)
+        {
+            this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
+            this.endDate = DateUtils.EndOfMonth(this.startDate);
+            return;
+        }
+
+        if (args.Length < 3)
+        {
+            Console.WriteLine("ERROR: Only one date was provided, if providing dates please provide both start and end dates in format dd-MM-yyyy");
+            throw new ArgumentException("ERROR: Only one date was provided, if providing dates please provide both start and end dates in format dd-MM-yyyy");
+        }
+
+        if (DateTimeOffset.TryParse(args[1], out var result))
+        {
+            this.startDate = result;
+        }
+        else
+        {
+            throw new ArgumentException($"ERROR: Invalid start date provided: {args[1]}");
+        }
+
+        if (DateTimeOffset.TryParse(args[2], out result))
+        {
+            this.endDate = result;
+        }
+        else
+        {
+            throw new ArgumentException($"ERROR: Invalid start date provided: {args[2]}");
+        }
     }
 
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
