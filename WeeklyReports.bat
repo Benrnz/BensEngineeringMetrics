@@ -4,7 +4,7 @@ ECHO Start time: %date% %time%
 cd \Development\BensEngineeringMetrics
 git checkout master
 git pull
-dotnet build
+dotnet build BensEngineeringMetrics.sln
 cd \Development\BensEngineeringMetrics\Bin\Debug\net9.0
 BensEngineeringMetricsConsole.exe BUG_STATS
 BensEngineeringMetricsConsole.exe INCIDENTS
