@@ -43,17 +43,53 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         await sheetUpdater.Open(GoogleSheetId);
 
         await GetDataAndCreateMonthTicketSheet();
-        CreatePieChartData();
-        // TODO PMPLAN Pie
+        CreateEngineeringExcellencePieChartData();
+        await CreatePmPlanPieChartData();
 
         await sheetUpdater.SubmitBatch();
     }
+
+    private record Initiative(string Key, string Summary);
+
+    private async Task CreatePmPlanPieChartData()
+    {
+        var queryCount = 1;
+        if (!this.AllInitiativeIssues.Any())
+        {
+            var initiativesJql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
+            var initiatives = (await runner.SearchJiraIssuesWithJqlAsync(initiativesJql, [JiraFields.Summary]))
+                .Select(i => new Initiative(JiraFields.Key.Parse(i), JiraFields.Summary.Parse(i)))
+                .OrderBy(i => i.Key);
+
+            foreach (var initiative in initiatives)
+            {
+                Console.Write($"{queryCount} ");
+                var pmPlansJql = $"issue in linkedIssues(\"{initiative.Key}\") OR parent in linkedIssues(\"{initiative.Key}\") ORDER BY key";
+                var pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(pmPlansJql, [JiraFields.Summary]))
+                    .Select(p => (string)JiraFields.Key.Parse(p));
+                queryCount++;
+                foreach (var pmPlan in pmPlans)
+                {
+                    var childIssuesJql = $"(issue in linkedIssues(\"{pmPlan}\") OR parent in linkedIssues(\"{pmPlan}\")) AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}' ORDER BY key";
+                    var childIssues = (await runner.SearchJiraIssuesWithJqlAsync(childIssuesJql, Fields))
+                        .Select(t => (JiraIssue)JiraIssue.CreateJiraIssue(t, initiative.Key));
+                    queryCount++;
+                    this.AllInitiativeIssues.AddRange(childIssues);
+                }
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"{queryCount} total queries executed. {this.AllInitiativeIssues.Count} issues retrieved.");
+    }
+
+    private List<JiraIssue> AllInitiativeIssues = new();
 
     private async Task GetDataAndCreateMonthTicketSheet()
     {
         var month = this.startDate.ToString("MMM");
         var jql =
-            $"project in (JAVPM,ENG) and type != EPIC  AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done  and  statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
+            $"project in (JAVPM,ENG) and type != EPIC AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
         Console.WriteLine(jql);
 
         this.issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
@@ -73,7 +109,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         await sheetUpdater.ImportFile($"{sheetName}!A1", fileName);
     }
 
-    private void CreatePieChartData()
+    private void CreateEngineeringExcellencePieChartData()
     {
         sheetUpdater.ClearRange($"{PiechartSheetTab}", "A1:D100");
 
@@ -203,11 +239,11 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         double StoryPoints,
         string Team,
         string WorkDoneBy,
-        string[] Labels)
+        string[] Labels,
+        string? Initiative = null)
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
-            var workDoneBy = JiraFields.WorkDoneBy.Parse(d);
             var labels = (string)JiraFields.Labels.Parse(d);
 
             return new JiraIssue(
@@ -218,8 +254,25 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.UpdatedDate.Parse(d),
                 JiraFields.StoryPoints.Parse(d),
                 JiraFields.Team.Parse(d),
-                workDoneBy,
+                JiraFields.WorkDoneBy.Parse(d),
                 labels.Split(','));
+        }
+
+        public static JiraIssue CreateJiraIssue(dynamic d, string initiative)
+        {
+            var labels = (string)JiraFields.Labels.Parse(d);
+
+            return new JiraIssue(
+                JiraFields.Key.Parse(d),
+                JiraFields.Summary.Parse(d),
+                JiraFields.IssueType.Parse(d),
+                JiraFields.Created.Parse(d),
+                JiraFields.UpdatedDate.Parse(d),
+                JiraFields.StoryPoints.Parse(d),
+                JiraFields.Team.Parse(d),
+                JiraFields.WorkDoneBy.Parse(d),
+                labels.Split(','),
+                initiative);
         }
     }
 }
