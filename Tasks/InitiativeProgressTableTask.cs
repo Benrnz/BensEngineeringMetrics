@@ -33,8 +33,6 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public IDictionary<string, IReadOnlyList<JiraIssue>> AllIssuesData { get; private set; } = new Dictionary<string, IReadOnlyList<JiraIssue>>();
 
-    public Guid Id => Guid.NewGuid();
-
     public string Description => "Export and update Initiative level PMPLAN data for drawing feature-set release _burn-up_charts_";
 
     public string Key => TaskKey;

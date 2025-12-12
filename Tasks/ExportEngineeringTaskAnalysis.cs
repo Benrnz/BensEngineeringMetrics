@@ -18,6 +18,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.Created,
         JiraFields.UpdatedDate,
         JiraFields.StoryPoints,
+        JiraFields.Team,
         JiraFields.WorkDoneBy,
         JiraFields.Labels
     ];
@@ -43,6 +44,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         await GetDataAndCreateMonthTicketSheet();
         CreatePieChartData();
+        // TODO PMPLAN Pie
 
         await sheetUpdater.SubmitBatch();
     }
@@ -199,6 +201,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         DateTimeOffset Created,
         DateTimeOffset UpdatedDate,
         double StoryPoints,
+        string Team,
         string WorkDoneBy,
         string[] Labels)
     {
@@ -214,6 +217,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.Created.Parse(d),
                 JiraFields.UpdatedDate.Parse(d),
                 JiraFields.StoryPoints.Parse(d),
+                JiraFields.Team.Parse(d),
                 workDoneBy,
                 labels.Split(','));
         }
