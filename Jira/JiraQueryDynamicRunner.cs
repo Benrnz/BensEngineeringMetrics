@@ -1,4 +1,5 @@
-﻿using System.Dynamic;
+﻿using System.Diagnostics;
+using System.Dynamic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -34,6 +35,33 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return CreateAgileSprintFromJsonNode(values);
     }
 
+    public async Task<IEnumerable<JiraInitiative>> GetOpenInitiatives()
+    {
+        string? nextPageToken = null;
+        bool isLastPage;
+        var client = new JiraApiClient();
+        var jql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
+        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+
+        var initiatives = new List<JiraInitiative>();
+        do
+        {
+            var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(f => f.Field).ToArray(), nextPageToken);
+
+            using var doc = JsonDocument.Parse(responseJson);
+            var issues = doc.RootElement.GetProperty("issues");
+            isLastPage = doc.RootElement.TryGetProperty("isLast", out var isLastPageToken) && isLastPageToken.GetBoolean();
+            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
+
+            foreach (var issue in issues.EnumerateArray())
+            {
+                initiatives.Add(ParseJsonIntoInitiative(issue));
+            }
+        } while (!isLastPage || nextPageToken != null);
+
+        return initiatives;
+    }
+
     public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)
     {
         string? nextPageToken = null;
@@ -47,7 +75,9 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         {
             if (this.fieldAliases.ContainsKey(field.Field))
             {
-                this.fieldAliases[field.Field] = this.fieldAliases[field.Field].Append(field).ToArray();
+                // Is this still used??
+                throw new NotSupportedException("Suspected stale unused code.");
+                 // this.fieldAliases[field.Field] = this.fieldAliases[field.Field].Append(field).ToArray();
             }
             else
             {
@@ -300,6 +330,53 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         }
 
         return field;
+    }
+
+    private JiraInitiative ParseJsonIntoInitiative(JsonElement issue)
+    {
+        var key = issue.GetProperty(JiraFields.Key.Field).GetString();
+        var summary = string.Empty;
+        var status = string.Empty;
+        bool? isReqdForGoLive = null;
+        var issueKeyList = new List<string>();
+        if (issue.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object)
+        {
+            summary = fields.GetProperty(JiraFields.Summary.Field).GetString();
+            status = fields.GetProperty(JiraFields.Status.Field).GetProperty("name").GetString();
+            isReqdForGoLive = null;
+            if (fields.TryGetProperty("customfield_11986", out var cf) && cf.ValueKind != JsonValueKind.Null)
+            {
+                isReqdForGoLive = cf.GetDouble() > 0;
+            }
+
+            if (fields.ValueKind == JsonValueKind.Object && fields.TryGetProperty("issuelinks", out var issueLinks) && issueLinks.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var link in issueLinks.EnumerateArray())
+                {
+                    // typical shapes: "outwardIssue": { "key": "PMPLAN-259", ... } or "inwardIssue": { "key": ... }
+                    if (link.TryGetProperty("outwardIssue", out var outIssue) && outIssue.ValueKind == JsonValueKind.Object &&
+                        outIssue.TryGetProperty("key", out var outKey) && outKey.ValueKind == JsonValueKind.String)
+                    {
+                        issueKeyList.Add(outKey.GetString()!);
+                        continue;
+                    }
+
+                    // Sometimes the link itself may contain a top-level "key" (defensive)
+                    if (link.TryGetProperty("key", out var linkKey) && linkKey.ValueKind == JsonValueKind.String)
+                    {
+                        issueKeyList.Add(linkKey.GetString()!);
+                    }
+                }
+            }
+        }
+
+        var issueLinkKeys = issueKeyList.Distinct().ToArray();
+        return new JiraInitiative(
+            key ?? string.Empty,
+            summary ?? string.Empty,
+            status ?? string.Empty,
+            isReqdForGoLive ?? false,
+            issueLinkKeys);
     }
 
     private bool PropertyShouldBeFlattened(string field, out IEnumerable<string> childFields)

@@ -25,6 +25,7 @@ public static class Program
             services.AddSingleton<BugStatsWorker>();
             services.AddTransient<ISlackClient, SlackClient>();
             services.AddTransient<ISheetPieChart, GooglePieChart>();
+            services.AddSingleton<IJiraIssueRepository, JiraIssueRepository>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())

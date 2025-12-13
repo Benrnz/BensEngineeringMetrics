@@ -5,7 +5,7 @@ namespace BensEngineeringMetrics.Tasks;
 /// <summary>
 ///     See https://javlnsupport.atlassian.net/wiki/spaces/DEVELOPMEN/pages/1284243457/Engineering+Tasks+Summary+-+November+2025
 /// </summary>
-public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter) : IEngineeringMetricsTask
+public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1_ANmhfs-kjyCwntbeS2lM0YYOpeBgCDoasZz5UZpl2g";
     private const string TaskKey = "ENG_TASK_ANALYSIS";
@@ -49,41 +49,33 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         await sheetUpdater.SubmitBatch();
     }
 
-    private record Initiative(string Key, string Summary);
+    private void CreateEngineeringExcellencePieChartData()
+    {
+        sheetUpdater.ClearRange($"{PiechartSheetTab}", "A1:D100");
+
+        var chartData = new List<IList<object?>>
+        {
+            new List<object?> { "Date Range", this.startDate.ToString("d-MMM-yy"), this.endDate.ToString("d-MMM-yy") }
+        };
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A1", chartData, true);
+
+        var totalCount = (double)this.issues.Count;
+        if (totalCount == 0)
+        {
+            Console.WriteLine("No data returned.");
+            return;
+        }
+
+        var totalPoints = this.issues.Sum(i => i.StoryPoints == 0 ? 1 : i.StoryPoints);
+        InsertEngineeringExcellenceTable(totalCount, totalPoints);
+        InsertTicketTypeAnalysisTable(totalCount, totalPoints);
+    }
 
     private async Task CreatePmPlanPieChartData()
     {
-        var queryCount = 1;
-        if (!this.AllInitiativeIssues.Any())
-        {
-            var initiativesJql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
-            var initiatives = (await runner.SearchJiraIssuesWithJqlAsync(initiativesJql, [JiraFields.Summary]))
-                .Select(i => new Initiative(JiraFields.Key.Parse(i), JiraFields.Summary.Parse(i)))
-                .OrderBy(i => i.Key);
-
-            foreach (var initiative in initiatives)
-            {
-                Console.Write($"{queryCount} ");
-                var pmPlansJql = $"issue in linkedIssues(\"{initiative.Key}\") OR parent in linkedIssues(\"{initiative.Key}\") ORDER BY key";
-                var pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(pmPlansJql, [JiraFields.Summary]))
-                    .Select(p => (string)JiraFields.Key.Parse(p));
-                queryCount++;
-                foreach (var pmPlan in pmPlans)
-                {
-                    var childIssuesJql = $"(issue in linkedIssues(\"{pmPlan}\") OR parent in linkedIssues(\"{pmPlan}\")) AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}' ORDER BY key";
-                    var childIssues = (await runner.SearchJiraIssuesWithJqlAsync(childIssuesJql, Fields))
-                        .Select(t => (JiraIssue)JiraIssue.CreateJiraIssue(t, initiative.Key));
-                    queryCount++;
-                    this.AllInitiativeIssues.AddRange(childIssues);
-                }
-            }
-        }
-
-        Console.WriteLine();
-        Console.WriteLine($"{queryCount} total queries executed. {this.AllInitiativeIssues.Count} issues retrieved.");
+        var openInitiatives = await jiraRepo.OpenInitiatives();
+        Console.WriteLine($"Retrieved {openInitiatives.Count} initiatives.");
     }
-
-    private List<JiraIssue> AllInitiativeIssues = new();
 
     private async Task GetDataAndCreateMonthTicketSheet()
     {
@@ -107,28 +99,6 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         }
 
         await sheetUpdater.ImportFile($"{sheetName}!A1", fileName);
-    }
-
-    private void CreateEngineeringExcellencePieChartData()
-    {
-        sheetUpdater.ClearRange($"{PiechartSheetTab}", "A1:D100");
-
-        var chartData = new List<IList<object?>>
-        {
-            new List<object?> { "Date Range", this.startDate.ToString("d-MMM-yy"), this.endDate.ToString("d-MMM-yy") }
-        };
-        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A1", chartData, true);
-
-        var totalCount = (double)this.issues.Count;
-        if (totalCount == 0)
-        {
-            Console.WriteLine("No data returned.");
-            return;
-        }
-
-        var totalPoints = this.issues.Sum(i => i.StoryPoints == 0 ? 1 : i.StoryPoints);
-        InsertEngineeringExcellenceTable(totalCount, totalPoints);
-        InsertTicketTypeAnalysisTable(totalCount, totalPoints);
     }
 
     private void InsertEngineeringExcellenceTable(double totalCount, double totalPoints)
@@ -227,6 +197,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             throw new ArgumentException($"ERROR: Invalid start date provided: {args[2]}");
         }
     }
+
+    private record Initiative(string Key, string Summary);
 
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
 
