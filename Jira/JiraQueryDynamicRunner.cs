@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Dynamic;
+﻿using System.Dynamic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -7,6 +6,9 @@ namespace BensEngineeringMetrics.Jira;
 
 public class JiraQueryDynamicRunner : IJiraQueryRunner
 {
+    /// <summary>
+    ///     Used for mapping fields from Json into a dynamic object.
+    /// </summary>
     private SortedList<string, IFieldMapping[]> fieldAliases = new();
 
     private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
@@ -35,15 +37,15 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return CreateAgileSprintFromJsonNode(values);
     }
 
-    public async Task<IEnumerable<JiraInitiative>> GetOpenInitiatives()
+    public async Task<IEnumerable<BasicJiraInitiative>> GetOpenInitiatives()
     {
         var jql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
         IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
-        var initiatives = new List<JiraInitiative>();
+        var initiatives = new List<BasicJiraInitiative>();
 
         await GetSomethingFromJira(jsonElement =>
             {
-                initiatives.Add(ParseJsonIntoInitiative(jsonElement));
+                initiatives.Add(ParseJsonIntoInitiative(jsonElement, "outwardIssue"));
             },
             jql,
             fields);
@@ -51,37 +53,16 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return initiatives;
     }
 
-    private async Task GetSomethingFromJira(Action<JsonElement> callBackActionForEachIssue, string jql, IFieldMapping[] fields)
-    {
-        string? nextPageToken = null;
-        bool isLastPage;
-        var client = new JiraApiClient();
-        do
-        {
-            var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(f => f.Field).ToArray(), nextPageToken);
-
-            using var doc = JsonDocument.Parse(responseJson);
-            var issues = doc.RootElement.GetProperty("issues");
-            isLastPage = doc.RootElement.TryGetProperty("isLast", out var isLastPageToken) && isLastPageToken.GetBoolean();
-            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
-
-            foreach (var issue in issues.EnumerateArray())
-            {
-                callBackActionForEachIssue(issue);
-            }
-        } while (!isLastPage || nextPageToken != null);
-    }
-
-    public async Task<IEnumerable<JiraPmPlan>> GetOpenIdeas()
+    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas()
     {
         var jql = """project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) ORDER BY key""";
         IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
-        var initiatives = new List<JiraPmPlan>();
+        var initiatives = new List<BasicJiraPmPlan>();
 
         await GetSomethingFromJira(jsonElement =>
             {
-                var temp = ParseJsonIntoInitiative(jsonElement);
-                initiatives.Add(new JiraPmPlan(temp.Key, temp.Summary, temp.Status, temp.RequiredForGoLive, temp.PmPlanKeys));
+                var temp = ParseJsonIntoInitiative(jsonElement, "inwardIssue");
+                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, temp.RequiredForGoLive, temp.PmPlanKeys));
             },
             jql,
             fields);
@@ -357,7 +338,28 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return field;
     }
 
-    private JiraInitiative ParseJsonIntoInitiative(JsonElement issue)
+    private async Task GetSomethingFromJira(Action<JsonElement> callBackActionForEachIssue, string jql, IFieldMapping[] fields)
+    {
+        string? nextPageToken = null;
+        bool isLastPage;
+        var client = new JiraApiClient();
+        do
+        {
+            var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(f => f.Field).ToArray(), nextPageToken);
+
+            using var doc = JsonDocument.Parse(responseJson);
+            var issues = doc.RootElement.GetProperty("issues");
+            isLastPage = doc.RootElement.TryGetProperty("isLast", out var isLastPageToken) && isLastPageToken.GetBoolean();
+            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
+
+            foreach (var issue in issues.EnumerateArray())
+            {
+                callBackActionForEachIssue(issue);
+            }
+        } while (!isLastPage || nextPageToken != null);
+    }
+
+    private BasicJiraInitiative ParseJsonIntoInitiative(JsonElement issue, string linkType)
     {
         var key = issue.GetProperty(JiraFields.Key.Field).GetString();
         var summary = string.Empty;
@@ -378,9 +380,8 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             {
                 foreach (var link in issueLinks.EnumerateArray())
                 {
-                    // typical shapes: "outwardIssue": { "key": "PMPLAN-259", ... } or "inwardIssue": { "key": ... }
-                    if (link.TryGetProperty("outwardIssue", out var outIssue) && outIssue.ValueKind == JsonValueKind.Object &&
-                        outIssue.TryGetProperty("key", out var outKey) && outKey.ValueKind == JsonValueKind.String)
+                    if (link.TryGetProperty(linkType, out var children) && children.ValueKind == JsonValueKind.Object &&
+                        children.TryGetProperty("key", out var outKey) && outKey.ValueKind == JsonValueKind.String)
                     {
                         issueKeyList.Add(outKey.GetString()!);
                         continue;
@@ -396,7 +397,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         }
 
         var issueLinkKeys = issueKeyList.Distinct().ToArray();
-        return new JiraInitiative(
+        return new BasicJiraInitiative(
             key ?? string.Empty,
             summary ?? string.Empty,
             status ?? string.Empty,

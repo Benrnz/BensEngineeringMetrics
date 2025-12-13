@@ -1,14 +1,10 @@
 ﻿namespace BensEngineeringMetrics.Jira;
 
-public record JiraInitiative(string Key, string Summary, string Status, bool RequiredForGoLive, string[] PmPlanKeys)
-{
-}
-
-public record JiraPmPlan(string Key, string Summary, string Status, bool RequiredForGoLive, string[] ChildrenTicketKeys);
-
 public interface IJiraIssueRepository
 {
-    Task<IReadOnlyList<JiraInitiative>> OpenInitiatives();
+    Task<IReadOnlyList<BasicJiraInitiative>> OpenInitiatives();
+
+    Task<IReadOnlyList<BasicJiraPmPlan>> OpenPmPlans();
 }
 
 public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
@@ -20,9 +16,10 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         JiraFields.IsReqdForGoLive
     ];
 
-    private readonly List<JiraInitiative> initiatives = new();
+    private readonly List<BasicJiraInitiative> initiatives = new();
+    private readonly List<BasicJiraPmPlan> pmPlans = new();
 
-    public async Task<IReadOnlyList<JiraInitiative>> OpenInitiatives()
+    public async Task<IReadOnlyList<BasicJiraInitiative>> OpenInitiatives()
     {
         if (this.initiatives.Any())
         {
@@ -32,5 +29,17 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         this.initiatives.AddRange(await runner.GetOpenInitiatives());
 
         return this.initiatives;
+    }
+
+    public async Task<IReadOnlyList<BasicJiraPmPlan>> OpenPmPlans()
+    {
+        if (this.pmPlans.Any())
+        {
+            return this.pmPlans;
+        }
+
+        this.pmPlans.AddRange(await runner.GetOpenIdeas());
+
+        return this.pmPlans;
     }
 }

@@ -75,6 +75,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
     {
         var openInitiatives = await jiraRepo.OpenInitiatives();
         Console.WriteLine($"Retrieved {openInitiatives.Count} initiatives.");
+        var openPmPlans = await jiraRepo.OpenPmPlans();
+        Console.WriteLine($"Retrieved {openPmPlans.Count} PmPlan Ideas.");
     }
 
     private async Task GetDataAndCreateMonthTicketSheet()
@@ -198,8 +200,6 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         }
     }
 
-    private record Initiative(string Key, string Summary);
-
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
 
     private record JiraIssue(
@@ -228,23 +228,6 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.Team.Parse(d),
                 JiraFields.WorkDoneBy.Parse(d),
                 labels.Split(','));
-        }
-
-        public static JiraIssue CreateJiraIssue(dynamic d, string initiative)
-        {
-            var labels = (string)JiraFields.Labels.Parse(d);
-
-            return new JiraIssue(
-                JiraFields.Key.Parse(d),
-                JiraFields.Summary.Parse(d),
-                JiraFields.IssueType.Parse(d),
-                JiraFields.Created.Parse(d),
-                JiraFields.UpdatedDate.Parse(d),
-                JiraFields.StoryPoints.Parse(d),
-                JiraFields.Team.Parse(d),
-                JiraFields.WorkDoneBy.Parse(d),
-                labels.Split(','),
-                initiative);
         }
     }
 }
