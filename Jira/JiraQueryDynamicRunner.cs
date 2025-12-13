@@ -37,13 +37,25 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
 
     public async Task<IEnumerable<JiraInitiative>> GetOpenInitiatives()
     {
+        var jql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
+        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+        var initiatives = new List<JiraInitiative>();
+
+        await GetSomethingFromJira(jsonElement =>
+            {
+                initiatives.Add(ParseJsonIntoInitiative(jsonElement));
+            },
+            jql,
+            fields);
+
+        return initiatives;
+    }
+
+    private async Task GetSomethingFromJira(Action<JsonElement> callBackActionForEachIssue, string jql, IFieldMapping[] fields)
+    {
         string? nextPageToken = null;
         bool isLastPage;
         var client = new JiraApiClient();
-        var jql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
-        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
-
-        var initiatives = new List<JiraInitiative>();
         do
         {
             var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(f => f.Field).ToArray(), nextPageToken);
@@ -55,9 +67,24 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
 
             foreach (var issue in issues.EnumerateArray())
             {
-                initiatives.Add(ParseJsonIntoInitiative(issue));
+                callBackActionForEachIssue(issue);
             }
         } while (!isLastPage || nextPageToken != null);
+    }
+
+    public async Task<IEnumerable<JiraPmPlan>> GetOpenIdeas()
+    {
+        var jql = """project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) ORDER BY key""";
+        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+        var initiatives = new List<JiraPmPlan>();
+
+        await GetSomethingFromJira(jsonElement =>
+            {
+                var temp = ParseJsonIntoInitiative(jsonElement);
+                initiatives.Add(new JiraPmPlan(temp.Key, temp.Summary, temp.Status, temp.RequiredForGoLive, temp.PmPlanKeys));
+            },
+            jql,
+            fields);
 
         return initiatives;
     }
@@ -70,14 +97,12 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         var results = new List<dynamic>();
 
         this.fieldAliases = new SortedList<string, IFieldMapping[]>();
-        // There might be more than one mapping per field.  This is because we might be flattening an object with many fields into a multiple top level properties.
         foreach (var field in fields)
         {
             if (this.fieldAliases.ContainsKey(field.Field))
             {
-                // Is this still used??
-                throw new NotSupportedException("Suspected stale unused code.");
-                 // this.fieldAliases[field.Field] = this.fieldAliases[field.Field].Append(field).ToArray();
+                // This is to cater for flattening a single JsonObject into two or more fields. Ex: Sprint - need sprint name and sprint start date.
+                this.fieldAliases[field.Field] = this.fieldAliases[field.Field].Append(field).ToArray();
             }
             else
             {

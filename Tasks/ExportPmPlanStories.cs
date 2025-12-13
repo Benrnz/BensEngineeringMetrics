@@ -11,10 +11,8 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
     [
         JiraFields.Summary,
         JiraFields.Status,
-        JiraFields.ParentKey,
         JiraFields.StoryPoints,
         JiraFields.OriginalEstimate,
-        JiraFields.Created,
         JiraFields.IssueType,
         JiraFields.ReporterDisplay,
         JiraFields.ParentKey,
