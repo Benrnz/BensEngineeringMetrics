@@ -1,12 +1,5 @@
 ﻿namespace BensEngineeringMetrics.Jira;
 
-public interface IJiraIssueRepository
-{
-    Task<IReadOnlyList<BasicJiraInitiative>> OpenInitiatives();
-
-    Task<IReadOnlyList<BasicJiraPmPlan>> OpenPmPlans();
-}
-
 public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
 {
     private static readonly IFieldMapping[] InitiativeFields =
