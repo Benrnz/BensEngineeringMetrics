@@ -77,6 +77,9 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         Console.WriteLine($"Retrieved {openInitiatives.Count} initiatives.");
         var openPmPlans = await jiraRepo.OpenPmPlans();
         Console.WriteLine($"Retrieved {openPmPlans.Count} PmPlan Ideas.");
+
+        jiraRepo.MapJiraIssuesToPmPlans(this.issues);
+        Console.WriteLine("Mapped issues to PMPLANs.");
     }
 
     private async Task GetDataAndCreateMonthTicketSheet()
@@ -212,7 +215,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         string Team,
         string WorkDoneBy,
         string[] Labels,
-        string? Initiative = null)
+        string? Initiative = null) : IJiraKeyedIssue
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {

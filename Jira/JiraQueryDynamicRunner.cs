@@ -365,7 +365,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         var summary = string.Empty;
         var status = string.Empty;
         bool? isReqdForGoLive = null;
-        var issueKeyList = new List<string>();
+        var issueKeyList = new List<IJiraKeyedIssue>();
         if (issue.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object)
         {
             summary = fields.GetProperty(JiraFields.Summary.Field).GetString();
@@ -380,17 +380,45 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             {
                 foreach (var link in issueLinks.EnumerateArray())
                 {
-                    if (link.TryGetProperty(linkType, out var children) && children.ValueKind == JsonValueKind.Object &&
-                        children.TryGetProperty("key", out var outKey) && outKey.ValueKind == JsonValueKind.String)
+                    if (!link.TryGetProperty(linkType, out var childIssue))
                     {
-                        issueKeyList.Add(outKey.GetString()!);
+                        continue;
+                    }
+
+                    if (childIssue.TryGetProperty("key", out var outKey) && outKey.ValueKind == JsonValueKind.String)
+                    {
+                        if (!childIssue.TryGetProperty("fields", out var childIssueFields))
+                        {
+                            continue;
+                        }
+
+                        string linkIssueType;
+                        if (childIssueFields.TryGetProperty("issuetype", out var issueTypeObject))
+                        {
+                            linkIssueType = issueTypeObject.GetProperty("name").GetString()!;
+                        }
+                        else
+                        {
+                            if (childIssueFields.TryGetProperty("type", out issueTypeObject))
+                            {
+                                linkIssueType = issueTypeObject.GetProperty("name").GetString()!;
+                            }
+                            else
+                            {
+                                linkIssueType = Constants.Unknown;
+                            }
+                        }
+
+                        issueKeyList.Add(new BasicJiraTicket(outKey.GetString()!, linkIssueType));
                         continue;
                     }
 
                     // Sometimes the link itself may contain a top-level "key" (defensive)
                     if (link.TryGetProperty("key", out var linkKey) && linkKey.ValueKind == JsonValueKind.String)
                     {
-                        issueKeyList.Add(linkKey.GetString()!);
+                        throw new NotSupportedException("I dont think this code is needed");
+                        // var issueTypeObject = link.GetProperty("issuetype");
+                        // issueKeyList.Add(new BasicJiraTicket(linkKey.GetString()!, linkIssueType));
                     }
                 }
             }
