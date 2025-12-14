@@ -50,7 +50,8 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         this.initiatives = newInitiativeList;
 
         // Loop through all Epics and pull through their children
-        await ExpandEpicsToIncludeTheirChildren();
+        var newPmPlanList = await ExpandEpicsToIncludeTheirChildren();
+        this.pmPlans = newPmPlanList;
     }
 
     public void MapJiraIssuesToPmPlans(IReadOnlyList<IJiraKeyedIssue> issues)
@@ -63,10 +64,10 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         var newPmPlanList = new List<BasicJiraPmPlan>();
         foreach (var pmPlan in this.pmPlans)
         {
-            var children = issues.Where(i => pmPlan.ChildrenTicketKeys.Any(cp => cp.Key == i.Key)).ToList();
+            var children = issues.Where(i => pmPlan.ChildTickets.Any(cp => cp.Key == i.Key)).ToList();
             if (children.Any())
             {
-                var updatedPmPlan = pmPlan with { ChildrenTickets = children };
+                var updatedPmPlan = pmPlan with { ChildTickets = children };
                 newPmPlanList.Add(updatedPmPlan);
             }
             else
@@ -78,41 +79,29 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         this.pmPlans = newPmPlanList;
     }
 
-    private async Task<IReadOnlyList<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
+    private async Task<List<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
     {
         var allEpicKeys = this.pmPlans
-            .SelectMany(p => p.ChildrenTicketKeys)
+            .SelectMany(p => p.ChildTickets)
             .Where(x => x.IssueType == Constants.EpicType)
             .Select(x => x.Key)
             .Distinct()
             .OrderBy(x => x);
 
-        var jql = $"key IN ({string.Join(',', allEpicKeys)})";
-        if (jql.Length < 10)
-        {
-            return this.pmPlans;
-        }
-
-        var epics = await runner.SearchJiraIssuesWithJqlAsync(jql, [JiraFields.IssueType]);
+        var epicChildren = (await runner.GetEpicChildren(allEpicKeys.ToArray())).ToList();
         var newPmPlanList = new List<BasicJiraPmPlan>();
         foreach (var pmPlan in this.pmPlans)
         {
             var newChildrenList = new List<IJiraKeyedIssue>();
-            foreach (var child in pmPlan.ChildrenTicketKeys)
+            foreach (var child in pmPlan.ChildTickets.Where(cp => cp.IssueType == Constants.EpicType))
             {
-                var match = epics.FirstOrDefault(e => e.Key == child.Key);
-                if (match is null)
-                {
-                    newChildrenList.Add(child);
-                }
-                else
-                {
-                    // TODO This wont work. The tickets to add will be buried in the issueLinks.
-                    newChildrenList.Add(new BasicJiraTicket(match.Key, match.Type));
-                }
+                newChildrenList.Add(child);
+                var grandChildren = epicChildren.Where(ec => ec.Parent == child.Key);
+                newChildrenList.AddRange(grandChildren);
             }
 
-            newPmPlanList.Add(pmPlan with { ChildrenTicketKeys = xxx, ChildrenTickets = newChildrenList });
+            var newPmPlan = pmPlan with { ChildTickets = newChildrenList };
+            newPmPlanList.Add(newPmPlan);
         }
 
         return newPmPlanList;

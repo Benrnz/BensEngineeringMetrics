@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace BensEngineeringMetrics.Jira;
 
-public class JiraQueryDynamicRunner : IJiraQueryRunner
+internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : IJiraQueryRunner
 {
     /// <summary>
     ///     Used for mapping fields from Json into a dynamic object.
@@ -21,20 +21,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             return null;
         }
 
-        var json = JsonNode.Parse(result);
-        if (json is null)
-        {
-            return null;
-        }
-
-        var records = json["total"]!.GetValue<int>();
-        if (records == 0)
-        {
-            return null;
-        }
-
-        var values = json["values"]?[0] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
-        return CreateAgileSprintFromJsonNode(values);
+        return jsonMapper.CreateAgileSprintFromJsonNode(JsonNode.Parse(result));
     }
 
     public async Task<IEnumerable<BasicJiraInitiative>> GetOpenInitiatives()
@@ -45,12 +32,33 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
 
         await GetSomethingFromJira(jsonElement =>
             {
-                initiatives.Add(ParseJsonIntoInitiative(jsonElement, "outwardIssue"));
+                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "outwardIssue"));
             },
             jql,
             fields);
 
         return initiatives;
+    }
+
+    public async Task<IEnumerable<BasicJiraTicketWithParent>> GetEpicChildren(string[] epicKeys)
+    {
+        var jql = $"""parent IN ({string.Join(',', epicKeys)}) Order By key""";
+        if (jql.Length < 25)
+        {
+            return [];
+        }
+
+        IFieldMapping[] fields = [JiraFields.IssueType, JiraFields.Summary, JiraFields.ParentKey, JiraFields.Status];
+        var issues = new List<BasicJiraTicketWithParent>();
+
+        await GetSomethingFromJira(jsonElement =>
+            {
+                issues.Add(jsonMapper.CreateBasicTicketFromJsonElement(jsonElement));
+            },
+            jql,
+            fields);
+
+        return issues;
     }
 
     public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas()
@@ -61,7 +69,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
 
         await GetSomethingFromJira(jsonElement =>
             {
-                var temp = ParseJsonIntoInitiative(jsonElement, "inwardIssue");
+                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue");
                 initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, temp.RequiredForGoLive, temp.PmPlanKeys));
             },
             jql,
@@ -117,13 +125,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             return null;
         }
 
-        var json = JsonNode.Parse(result);
-        if (json is null)
-        {
-            return null;
-        }
-
-        return CreateAgileSprintFromJsonNode(json);
+        return jsonMapper.CreateAgileSprintFromJsonNode(JsonNode.Parse(result));
     }
 
     public async Task<IReadOnlyList<AgileSprint>> GetAllSprints(int boardId)
@@ -183,23 +185,10 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         var sprints = new List<AgileSprint>();
         foreach (var jsonValue in values)
         {
-            sprints.Add(CreateAgileSprintFromJsonNode(jsonValue));
+            sprints.Add(jsonMapper.CreateAgileSprintFromJsonNode(jsonValue));
         }
 
         return sprints.OrderByDescending(s => s.StartDate).ToList();
-    }
-
-    private AgileSprint CreateAgileSprintFromJsonNode(JsonNode jsonValue)
-    {
-        return new AgileSprint(
-            jsonValue["id"]!.GetValue<int>(),
-            jsonValue["state"]?.GetValue<string?>() ?? string.Empty,
-            jsonValue["name"]?.GetValue<string?>() ?? string.Empty,
-            jsonValue["startDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            jsonValue["endDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            CompleteDate: jsonValue["completeDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            BoardId: jsonValue["originBoardId"]?.GetValue<int?>() ?? 0,
-            Goal: jsonValue["goal"]?.GetValue<string?>() ?? string.Empty);
     }
 
     private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName, string childField)
@@ -357,80 +346,6 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                 callBackActionForEachIssue(issue);
             }
         } while (!isLastPage || nextPageToken != null);
-    }
-
-    private BasicJiraInitiative ParseJsonIntoInitiative(JsonElement issue, string linkType)
-    {
-        var key = issue.GetProperty(JiraFields.Key.Field).GetString();
-        var summary = string.Empty;
-        var status = string.Empty;
-        bool? isReqdForGoLive = null;
-        var issueKeyList = new List<IJiraKeyedIssue>();
-        if (issue.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object)
-        {
-            summary = fields.GetProperty(JiraFields.Summary.Field).GetString();
-            status = fields.GetProperty(JiraFields.Status.Field).GetProperty("name").GetString();
-            isReqdForGoLive = null;
-            if (fields.TryGetProperty("customfield_11986", out var cf) && cf.ValueKind != JsonValueKind.Null)
-            {
-                isReqdForGoLive = cf.GetDouble() > 0;
-            }
-
-            if (fields.ValueKind == JsonValueKind.Object && fields.TryGetProperty("issuelinks", out var issueLinks) && issueLinks.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var link in issueLinks.EnumerateArray())
-                {
-                    if (!link.TryGetProperty(linkType, out var childIssue))
-                    {
-                        continue;
-                    }
-
-                    if (childIssue.TryGetProperty("key", out var outKey) && outKey.ValueKind == JsonValueKind.String)
-                    {
-                        if (!childIssue.TryGetProperty("fields", out var childIssueFields))
-                        {
-                            continue;
-                        }
-
-                        string linkIssueType;
-                        if (childIssueFields.TryGetProperty("issuetype", out var issueTypeObject))
-                        {
-                            linkIssueType = issueTypeObject.GetProperty("name").GetString()!;
-                        }
-                        else
-                        {
-                            if (childIssueFields.TryGetProperty("type", out issueTypeObject))
-                            {
-                                linkIssueType = issueTypeObject.GetProperty("name").GetString()!;
-                            }
-                            else
-                            {
-                                linkIssueType = Constants.Unknown;
-                            }
-                        }
-
-                        issueKeyList.Add(new BasicJiraTicket(outKey.GetString()!, linkIssueType));
-                        continue;
-                    }
-
-                    // Sometimes the link itself may contain a top-level "key" (defensive)
-                    if (link.TryGetProperty("key", out var linkKey) && linkKey.ValueKind == JsonValueKind.String)
-                    {
-                        throw new NotSupportedException("I dont think this code is needed");
-                        // var issueTypeObject = link.GetProperty("issuetype");
-                        // issueKeyList.Add(new BasicJiraTicket(linkKey.GetString()!, linkIssueType));
-                    }
-                }
-            }
-        }
-
-        var issueLinkKeys = issueKeyList.Distinct().ToArray();
-        return new BasicJiraInitiative(
-            key ?? string.Empty,
-            summary ?? string.Empty,
-            status ?? string.Empty,
-            isReqdForGoLive ?? false,
-            issueLinkKeys);
     }
 
     private bool PropertyShouldBeFlattened(string field, out IEnumerable<string> childFields)

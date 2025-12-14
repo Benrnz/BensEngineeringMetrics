@@ -14,6 +14,11 @@ public interface IJiraQueryRunner
     Task<AgileSprint?> GetCurrentSprintForBoard(int boardId);
 
     /// <summary>
+    ///     Get all children (select many) for each epic key provided.
+    /// </summary>
+    Task<IEnumerable<BasicJiraTicketWithParent>> GetEpicChildren(string[] epicKeys);
+
+    /// <summary>
     ///     Retrieve all open Product Ideas from Jira.  A Product Idea is a grouping parent object that is a direct child of a Product Initiative.
     ///     A PmPlan Idea can have many Jira tickets as children that can be epics, stories, bugs, etc.
     /// </summary>
