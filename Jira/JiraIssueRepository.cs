@@ -33,22 +33,6 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         return (this.initiatives, this.pmPlans);
     }
 
-    public async Task MapPmPlanIdeasToInitiatives()
-    {
-        if (!this.initiatives.Any() || !this.pmPlans.Any())
-        {
-            return;
-        }
-
-        // Loop through all Epics and pull through their children
-        var newPmPlanList = await ExpandEpicsToIncludeTheirChildren();
-        this.pmPlans = newPmPlanList;
-
-        // Add PmPlan links into the Initiatives.
-        var newInitiativeList = MapPmPlanLinksIntoInitiatives();
-        this.initiatives = newInitiativeList;
-    }
-
     private async Task<List<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
     {
         var allEpicKeys = this.pmPlans
@@ -75,6 +59,22 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         }
 
         return newPmPlanList;
+    }
+
+    private async Task MapPmPlanIdeasToInitiatives()
+    {
+        if (!this.initiatives.Any() || !this.pmPlans.Any())
+        {
+            return;
+        }
+
+        // Loop through all Epics and pull through their children
+        var newPmPlanList = await ExpandEpicsToIncludeTheirChildren();
+        this.pmPlans = newPmPlanList;
+
+        // Add PmPlan links into the Initiatives.
+        var newInitiativeList = MapPmPlanLinksIntoInitiatives();
+        this.initiatives = newInitiativeList;
     }
 
     private List<BasicJiraInitiative> MapPmPlanLinksIntoInitiatives()

@@ -313,7 +313,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
         if (foundSheetId is not null)
         {
-            this.sheetNamesToIds.Add(sheetName, foundSheetId.Value);
+            this.sheetNamesToIds[sheetName] = foundSheetId.Value;
             return foundSheetId.Value;
         }
 

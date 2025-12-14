@@ -1,4 +1,5 @@
 ﻿using BensEngineeringMetrics.Jira;
+using Microsoft.Extensions.Hosting.Internal;
 
 namespace BensEngineeringMetrics.Tasks;
 
@@ -38,15 +39,38 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine();
 
-        ParseArguments(args);
+        var loop = false;
+        do
+        {
+            loop = ParseArguments(args, loop);
+            if (this.startDate == DateTimeOffset.MinValue || this.endDate == DateTimeOffset.MinValue)
+            {
+                return;
+            }
 
-        await sheetUpdater.Open(GoogleSheetId);
+            await sheetUpdater.Open(GoogleSheetId);
+            var monthName = this.startDate.ToString("MMM");
+            var dataSheetName = $"{monthName} JiraIssues";
+            if (await sheetUpdater.DoesSheetExist(dataSheetName))
+            {
+                sheetUpdater.ClearRange(dataSheetName);
+            }
+            else
+            {
+                // Ensure sheet is created first.
+                sheetUpdater.AddSheet(dataSheetName);
+                await sheetUpdater.SubmitBatch();
+            }
 
-        await GetDataAndCreateMonthTicketSheet();
-        CreateEngineeringExcellencePieChartData();
-        await CreatePmPlanPieChartData();
+            await sheetUpdater.Open(GoogleSheetId);
 
-        await sheetUpdater.SubmitBatch();
+            await GetDataAndCreateMonthTicketSheet(dataSheetName, monthName);
+            CreateEngineeringExcellencePieChartData();
+            await CreatePmPlanPieChartData();
+
+            sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("G")]]);
+            await sheetUpdater.SubmitBatch();
+        } while (loop);
     }
 
     private void CreateEngineeringExcellencePieChartData()
@@ -94,26 +118,16 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         await sheetUpdater.BoldCellsFormat(PiechartSheetTab, 71, 72, 0, 4);
     }
 
-    private async Task GetDataAndCreateMonthTicketSheet()
+    private async Task GetDataAndCreateMonthTicketSheet(string sheetName, string monthName)
     {
-        var month = this.startDate.ToString("MMM");
         var jql =
             $"project in (JAVPM,ENG) and type != EPIC AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
         Console.WriteLine(jql);
 
         this.issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}_{month}_Issues");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}_{monthName}_Issues");
         var fileName = exporter.Export(this.issues);
-        var sheetName = $"{month} JiraIssues";
-        if (await sheetUpdater.DoesSheetExist(sheetName))
-        {
-            sheetUpdater.ClearRange(sheetName);
-        }
-        else
-        {
-            sheetUpdater.AddSheet(sheetName);
-        }
 
         await sheetUpdater.ImportFile($"{sheetName}!A1", fileName);
     }
@@ -226,13 +240,13 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
     private record JiraMonthTicketWithInitiative(string Key, string Initiative, double StoryPoints);
 
-    private void ParseArguments(string[] args)
+    private bool ParseArguments(string[] args, bool loop)
     {
         if (args.Length <= 1)
         {
             this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
             this.endDate = DateUtils.EndOfMonth(this.startDate);
-            return;
+            return false;
         }
 
         if (args.Length < 3)
@@ -241,23 +255,49 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             throw new ArgumentException("ERROR: Only one date was provided, if providing dates please provide both start and end dates in format dd-MM-yyyy");
         }
 
-        if (DateTimeOffset.TryParse(args[1], out var result))
+        this.endDate = this.startDate = DateTimeOffset.MinValue;
+        this.startDate = GetDateFromConsole("start date (inclusive)", loop, args[1]);
+        if (this.startDate == DateTimeOffset.MinValue)
         {
-            this.startDate = result;
-        }
-        else
-        {
-            throw new ArgumentException($"ERROR: Invalid start date provided: {args[1]}");
+            return false;
         }
 
-        if (DateTimeOffset.TryParse(args[2], out result))
+        this.endDate = GetDateFromConsole("end date (exclusive)", loop, args[2]);
+        if (this.endDate == DateTimeOffset.MinValue)
         {
-            this.endDate = result;
+            return false;
         }
-        else
+
+        return true;
+    }
+
+    private DateTimeOffset GetDateFromConsole(string prompt, bool loop, string commandLineArg)
+    {
+        do
         {
-            throw new ArgumentException($"ERROR: Invalid start date provided: {args[2]}");
-        }
+            string? dateProvided;
+            if (loop)
+            {
+                Console.WriteLine($"Enter a {prompt}. Or enter to exit.");
+                dateProvided = Console.ReadLine();
+            }
+            else
+            {
+                dateProvided = commandLineArg;
+            }
+
+            if (string.IsNullOrEmpty(dateProvided) || dateProvided == "exit")
+            {
+                return DateTimeOffset.MinValue;
+            }
+
+            if (DateTimeOffset.TryParse(dateProvided, out var result))
+            {
+                return result;
+            }
+
+            Console.WriteLine($"ERROR: Invalid start date provided: {dateProvided}");
+        } while (true);
     }
 
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
