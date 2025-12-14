@@ -78,11 +78,20 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         var listOfInterest = MapJiraIssuesToPmPlans(openInitiatives);
         var groupedByInitiative = listOfInterest.GroupBy(x => x.Initiative)
-            .Select(g => new { Initiative = g.Key, TicketCount = g.Count(), StoryPointTotal = g.Sum(x => x.StoryPoints) });
+            .Select(g => new { Initiative = g.Key, TicketCount = g.Count(), StoryPointTotal = g.Sum(x => x.StoryPoints) })
+            .OrderByDescending(x => x.StoryPointTotal);
+        var chartData = new List<IList<object?>>
+        {
+            new List<object?> { "PMPLAN Initiative", null, "Total Story Points", "Ticket Count" }
+        };
         foreach (var group in groupedByInitiative)
         {
             Console.WriteLine($"{group.Initiative}  Tickets:{group.TicketCount} StoryPointTotal:{group.StoryPointTotal}");
+            chartData.Add([group.Initiative, null, group.StoryPointTotal, group.TicketCount]);
         }
+
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A72", chartData, true);
+        await sheetUpdater.BoldCellsFormat(PiechartSheetTab, 71, 72, 0, 4);
     }
 
     private async Task GetDataAndCreateMonthTicketSheet()
