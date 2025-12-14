@@ -60,7 +60,17 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                         currentPmPlan = child.PmPlan;
                     }
 
-                    var row = new List<object?> { null, child.Key, child.Summary, null, null, null, child.StoryPoints };
+                    var row = new List<object?>
+                    {
+                        null,
+                        $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{child.Key}\", \"{child.Key}\")",
+                        child.Summary,
+                        null,
+                        null,
+                        null,
+                        child.StoryPoints,
+                        child.Status
+                    };
                     childrenArray.Add(row);
                 }
 
