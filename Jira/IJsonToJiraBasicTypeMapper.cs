@@ -7,7 +7,7 @@ internal interface IJsonToJiraBasicTypeMapper
 {
     AgileSprint CreateAgileSprintFromJsonNode(JsonNode? json);
 
-    BasicJiraInitiative CreateBasicInitiativeFromJsonElement(JsonElement issue, string linkType);
+    BasicJiraInitiative CreateBasicInitiativeFromJsonElement(JsonElement issue, string linkType, Predicate<string> excludeParentFilter);
 
     BasicJiraTicketWithParent CreateBasicTicketFromJsonElement(JsonElement issue);
 }

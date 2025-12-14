@@ -31,7 +31,7 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             Goal: jsonValue["goal"]?.GetValue<string?>() ?? string.Empty);
     }
 
-    public BasicJiraInitiative CreateBasicInitiativeFromJsonElement(JsonElement issue, string linkType)
+    public BasicJiraInitiative CreateBasicInitiativeFromJsonElement(JsonElement issue, string linkType, Predicate<string> excludeParentFilter)
     {
         var key = issue.GetProperty(JiraFields.Key.Field).GetString();
         var summary = string.Empty;
@@ -80,6 +80,12 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
                             {
                                 linkIssueType = Constants.Unknown;
                             }
+                        }
+
+                        if (!excludeParentFilter(linkIssueType))
+                        {
+                            // This is to prevent the PMPLAN listing its own parent (the Product Initiative) as a child
+                            continue;
                         }
 
                         var childStatus = childIssueFields.GetProperty(JiraFields.Status.Field).GetProperty(JiraFields.Status.FlattenField).GetString();

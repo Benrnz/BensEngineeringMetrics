@@ -2,13 +2,6 @@
 
 public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
 {
-    private static readonly IFieldMapping[] InitiativeFields =
-    [
-        JiraFields.Summary,
-        JiraFields.Status,
-        JiraFields.IsReqdForGoLive
-    ];
-
     private List<BasicJiraInitiative> initiatives = new();
     private List<BasicJiraPmPlan> pmPlans = new();
 
@@ -20,22 +13,24 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         }
 
         this.initiatives.AddRange(await runner.GetOpenInitiatives());
+        Console.WriteLine($"Retrieved {this.initiatives.Count} initiatives.");
 
         return this.initiatives;
     }
 
-    public async Task<IReadOnlyList<BasicJiraPmPlan>> OpenPmPlans()
+    public async Task<(IReadOnlyList<BasicJiraInitiative> mappedInitiatives, IReadOnlyList<BasicJiraPmPlan> pmPlans)> OpenPmPlans()
     {
         if (this.pmPlans.Any())
         {
-            return this.pmPlans;
+            return (this.initiatives, this.pmPlans);
         }
 
         this.pmPlans.AddRange(await runner.GetOpenIdeas());
+        Console.WriteLine($"Retrieved {this.pmPlans.Count} PmPlan Ideas.");
 
         await MapPmPlanIdeasToInitiatives();
 
-        return this.pmPlans;
+        return (this.initiatives, this.pmPlans);
     }
 
     public async Task MapPmPlanIdeasToInitiatives()
@@ -54,31 +49,6 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         this.pmPlans = newPmPlanList;
     }
 
-    public void MapJiraIssuesToPmPlans(IReadOnlyList<IJiraKeyedIssue> issues)
-    {
-        if (!this.pmPlans.Any() || !issues.Any())
-        {
-            return;
-        }
-
-        var newPmPlanList = new List<BasicJiraPmPlan>();
-        foreach (var pmPlan in this.pmPlans)
-        {
-            var children = issues.Where(i => pmPlan.ChildTickets.Any(cp => cp.Key == i.Key)).ToList();
-            if (children.Any())
-            {
-                var updatedPmPlan = pmPlan with { ChildTickets = children };
-                newPmPlanList.Add(updatedPmPlan);
-            }
-            else
-            {
-                newPmPlanList.Add(pmPlan);
-            }
-        }
-
-        this.pmPlans = newPmPlanList;
-    }
-
     private async Task<List<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
     {
         var allEpicKeys = this.pmPlans
@@ -89,13 +59,13 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
             .OrderBy(x => x);
 
         var epicChildren = (await runner.GetEpicChildren(allEpicKeys.ToArray())).ToList();
+        Console.WriteLine($"PmPlan grandchildren fetched: {epicChildren.Count} tickets");
         var newPmPlanList = new List<BasicJiraPmPlan>();
         foreach (var pmPlan in this.pmPlans)
         {
-            var newChildrenList = new List<IJiraKeyedIssue>();
+            var newChildrenList = new List<IJiraKeyedIssue>(pmPlan.ChildTickets);
             foreach (var child in pmPlan.ChildTickets.Where(cp => cp.IssueType == Constants.EpicType))
             {
-                newChildrenList.Add(child);
                 var grandChildren = epicChildren.Where(ec => ec.Parent == child.Key);
                 newChildrenList.AddRange(grandChildren);
             }

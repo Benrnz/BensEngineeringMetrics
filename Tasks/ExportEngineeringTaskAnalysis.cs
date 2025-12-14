@@ -73,14 +73,12 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
     private async Task CreatePmPlanPieChartData()
     {
-        var openInitiatives = await jiraRepo.OpenInitiatives();
-        Console.WriteLine($"Retrieved {openInitiatives.Count} initiatives.");
-        var openPmPlans = await jiraRepo.OpenPmPlans();
-        Console.WriteLine($"Retrieved {openPmPlans.Count} PmPlan Ideas.");
+        await jiraRepo.OpenInitiatives();
+        var (openInitiatives, openPmPlans) = await jiraRepo.OpenPmPlans();
 
-        jiraRepo.MapJiraIssuesToPmPlans(this.issues);
-        Console.WriteLine("Mapped issues to PMPLANs.");
+        MapJiraIssuesToPmPlans(openInitiatives, this.issues);
     }
+
 
     private async Task GetDataAndCreateMonthTicketSheet()
     {
@@ -167,6 +165,15 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A26", chartData, true);
         sheetUpdater.BoldCellsFormat(PiechartSheetTab, 25, 26, 0, 4);
         sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 25 - 1, chartData.Count + 25, 0, 4);
+    }
+
+    private void MapJiraIssuesToPmPlans(IReadOnlyList<BasicJiraInitiative> initiatives, IReadOnlyList<IJiraKeyedIssue> issues)
+    {
+        if (!initiatives.Any() || !issues.Any())
+        {
+        }
+
+        // flatten initiatives structure into a single list where each leaf ticket is an instance of BasicJiraTicketWithParent, and the Parent field is set to the top level Initiative.
     }
 
     private void ParseArguments(string[] args)

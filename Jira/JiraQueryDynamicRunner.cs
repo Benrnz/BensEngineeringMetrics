@@ -32,7 +32,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
 
         await GetSomethingFromJira(jsonElement =>
             {
-                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "outwardIssue"));
+                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "outwardIssue", _ => true));
             },
             jql,
             fields);
@@ -69,7 +69,8 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
 
         await GetSomethingFromJira(jsonElement =>
             {
-                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue");
+                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue", type => type != Constants.ProductInitiativeType);
+                // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
                 initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
             },
             jql,
