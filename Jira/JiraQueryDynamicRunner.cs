@@ -70,7 +70,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
         await GetSomethingFromJira(jsonElement =>
             {
                 var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue");
-                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, temp.RequiredForGoLive, temp.PmPlanKeys));
+                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
             },
             jql,
             fields);

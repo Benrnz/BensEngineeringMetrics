@@ -12,6 +12,7 @@ public static class Constants
     public const string Envest = "Envest";
     public const string EpicType = "Epic";
     public const string HasDevTeamEstimate = "Dev Team Estimate";
+    public const string IdeaType = "Idea";
     public const string ImprovementType = "Improvement";
     public const string InDevStatus = "In Dev";
     public const string InQaStatus = "In Test";

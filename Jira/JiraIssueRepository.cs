@@ -112,10 +112,10 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         var newInitiativeList = new List<BasicJiraInitiative>();
         foreach (var initiative in this.initiatives)
         {
-            var children = this.pmPlans.Where(p => initiative.PmPlanKeys.Any(ip => ip.Key == p.Key)).ToList();
+            var children = this.pmPlans.Where(p => initiative.ChildPmPlans.Any(ip => ip.Key == p.Key)).ToList();
             if (children.Any())
             {
-                var updatedInitiative = initiative with { PmPlanIdeas = children };
+                var updatedInitiative = initiative with { ChildPmPlans = children };
                 newInitiativeList.Add(updatedInitiative);
             }
             else
