@@ -74,17 +74,16 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
     private async Task CreatePmPlanPieChartData()
     {
         await jiraRepo.OpenInitiatives();
-        var (openInitiatives, openPmPlans) = await jiraRepo.OpenPmPlans();
+        var (openInitiatives, _) = await jiraRepo.OpenPmPlans();
 
-        var listOfInterest = MapJiraIssuesToPmPlans(openInitiatives, this.issues);
-        var groupedByInitiative = listOfInterest.GroupBy(x => x.Parent)
-            .Select(g => new { Initiative = g.Key, TicketCount = g.Count() });
+        var listOfInterest = MapJiraIssuesToPmPlans(openInitiatives);
+        var groupedByInitiative = listOfInterest.GroupBy(x => x.Initiative)
+            .Select(g => new { Initiative = g.Key, TicketCount = g.Count(), StoryPointTotal = g.Sum(x => x.StoryPoints) });
         foreach (var group in groupedByInitiative)
         {
-            Console.WriteLine($"{group.Initiative}  {group.TicketCount}");
+            Console.WriteLine($"{group.Initiative}  Tickets:{group.TicketCount} StoryPointTotal:{group.StoryPointTotal}");
         }
     }
-
 
     private async Task GetDataAndCreateMonthTicketSheet()
     {
@@ -173,15 +172,15 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 25 - 1, chartData.Count + 25, 0, 4);
     }
 
-    private IList<BasicJiraTicketWithParent> MapJiraIssuesToPmPlans(IReadOnlyList<BasicJiraInitiative> initiatives, IReadOnlyList<IJiraKeyedIssue> issues)
+    private IList<JiraMonthTicketWithInitiative> MapJiraIssuesToPmPlans(IReadOnlyList<BasicJiraInitiative> initiatives)
     {
-        if (!initiatives.Any() || !issues.Any())
+        if (!initiatives.Any() || !this.issues.Any())
         {
-            return new List<BasicJiraTicketWithParent>();
+            return new List<JiraMonthTicketWithInitiative>();
         }
 
         // flatten initiatives structure into a single list where each leaf ticket is an instance of BasicJiraTicketWithParent, and the Parent field is set to the top level Initiative.
-        var result = new List<BasicJiraTicketWithParent>();
+        var result = new List<JiraMonthTicketWithInitiative>();
 
         foreach (var initiative in initiatives)
         {
@@ -196,15 +195,18 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 foreach (var childTicket in pmPlan.ChildTickets)
                 {
                     // ChildTickets should be BasicJiraTicket instances and they must be in the set of interest provided above
-                    if (childTicket is BasicJiraTicket ticket && issues.Any(i => i.Key == childTicket.Key))
+                    if (childTicket is BasicJiraTicket ticket)
                     {
-                        var ticketWithParent = new BasicJiraTicketWithParent(
-                            ticket.Key,
-                            ticket.Summary,
-                            ticket.Status,
-                            ticket.IssueType,
-                            $"{initiative.Key} {initiative.Summary}");
-                        result.Add(ticketWithParent);
+                        var monthTicket = this.issues.FirstOrDefault(i => i.Key == childTicket.Key);
+                        if (monthTicket is not null)
+                        {
+                            var summaryTicket = new JiraMonthTicketWithInitiative(
+                                ticket.Key,
+                                $"{initiative.Key} {initiative.Summary}",
+                                monthTicket.StoryPoints
+                            );
+                            result.Add(summaryTicket);
+                        }
                     }
                 }
             }
@@ -212,6 +214,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         return result;
     }
+
+    private record JiraMonthTicketWithInitiative(string Key, string Initiative, double StoryPoints);
 
     private void ParseArguments(string[] args)
     {
@@ -258,8 +262,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         double StoryPoints,
         string Team,
         string WorkDoneBy,
-        string[] Labels,
-        string? Initiative = null) : IJiraKeyedIssue
+        string[] Labels) : IJiraKeyedIssue
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
