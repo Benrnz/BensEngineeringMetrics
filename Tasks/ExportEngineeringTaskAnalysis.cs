@@ -76,7 +76,13 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         await jiraRepo.OpenInitiatives();
         var (openInitiatives, openPmPlans) = await jiraRepo.OpenPmPlans();
 
-        MapJiraIssuesToPmPlans(openInitiatives, this.issues);
+        var listOfInterest = MapJiraIssuesToPmPlans(openInitiatives, this.issues);
+        var groupedByInitiative = listOfInterest.GroupBy(x => x.Parent)
+            .Select(g => new { Initiative = g.Key, TicketCount = g.Count() });
+        foreach (var group in groupedByInitiative)
+        {
+            Console.WriteLine($"{group.Initiative}  {group.TicketCount}");
+        }
     }
 
 
@@ -167,13 +173,44 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         sheetUpdater.BoldCellsFormat(PiechartSheetTab, chartData.Count + 25 - 1, chartData.Count + 25, 0, 4);
     }
 
-    private void MapJiraIssuesToPmPlans(IReadOnlyList<BasicJiraInitiative> initiatives, IReadOnlyList<IJiraKeyedIssue> issues)
+    private IList<BasicJiraTicketWithParent> MapJiraIssuesToPmPlans(IReadOnlyList<BasicJiraInitiative> initiatives, IReadOnlyList<IJiraKeyedIssue> issues)
     {
         if (!initiatives.Any() || !issues.Any())
         {
+            return new List<BasicJiraTicketWithParent>();
         }
 
         // flatten initiatives structure into a single list where each leaf ticket is an instance of BasicJiraTicketWithParent, and the Parent field is set to the top level Initiative.
+        var result = new List<BasicJiraTicketWithParent>();
+
+        foreach (var initiative in initiatives)
+        {
+            foreach (var childPmPlan in initiative.ChildPmPlans)
+            {
+                // ChildPmPlans should be BasicJiraPmPlan instances
+                if (childPmPlan is not BasicJiraPmPlan pmPlan)
+                {
+                    continue;
+                }
+
+                foreach (var childTicket in pmPlan.ChildTickets)
+                {
+                    // ChildTickets should be BasicJiraTicket instances and they must be in the set of interest provided above
+                    if (childTicket is BasicJiraTicket ticket && issues.Any(i => i.Key == childTicket.Key))
+                    {
+                        var ticketWithParent = new BasicJiraTicketWithParent(
+                            ticket.Key,
+                            ticket.Summary,
+                            ticket.Status,
+                            ticket.IssueType,
+                            $"{initiative.Key} {initiative.Summary}");
+                        result.Add(ticketWithParent);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     private void ParseArguments(string[] args)

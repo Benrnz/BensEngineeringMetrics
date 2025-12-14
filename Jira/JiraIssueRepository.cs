@@ -40,13 +40,13 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
             return;
         }
 
-        // Add PmPlan links into the Initiatives.
-        var newInitiativeList = MapPmPlanLinksIntoInitiatives();
-        this.initiatives = newInitiativeList;
-
         // Loop through all Epics and pull through their children
         var newPmPlanList = await ExpandEpicsToIncludeTheirChildren();
         this.pmPlans = newPmPlanList;
+
+        // Add PmPlan links into the Initiatives.
+        var newInitiativeList = MapPmPlanLinksIntoInitiatives();
+        this.initiatives = newInitiativeList;
     }
 
     private async Task<List<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
