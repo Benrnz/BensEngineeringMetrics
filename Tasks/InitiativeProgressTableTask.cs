@@ -17,7 +17,8 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         JiraFields.OriginalEstimate,
         JiraFields.Created,
         JiraFields.Resolved,
-        JiraFields.Team
+        JiraFields.Team,
+        JiraFields.Sprint
     ];
 
     private static readonly IFieldMapping[] PmPlanFields =
@@ -153,7 +154,8 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             pmPlan ?? string.Empty,
             JiraFields.Summary.Parse(issue) ?? string.Empty,
             pmPlanSummary ?? string.Empty,
-            JiraFields.Team.Parse(issue) ?? Constants.Unknown);
+            JiraFields.Team.Parse(issue) ?? string.Empty,
+            JiraFields.Sprint.Parse(issue) ?? string.Empty);
     }
 
     private async Task ExtractAllInitiativeData(IReadOnlyList<string> initiativeKeys)
@@ -241,5 +243,6 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         string PmPlan,
         string Summary,
         string PmPlanSummary,
-        string Team);
+        string Team,
+        string Sprint);
 }

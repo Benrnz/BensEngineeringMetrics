@@ -28,6 +28,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     .OrderBy(i => i.PmPlan)
                     .ThenBy(i => i.ResolvedDateTime)
                     .ThenBy(i => i.CreatedDateTime))
+                .Select(x => new {x.Date, x.TotalDaysEffort, x.WorkCompleted})
                 .ToList();
             exporter.SetFileNameMode(FileNameMode.ExactName, initiative);
             var fileName = exporter.Export(chart);
@@ -70,12 +71,13 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                         null,
                         child.StoryPoints,
                         child.Status,
-                        child.Team
+                        child.Team,
+                        child.Sprint
                     };
                     childrenArray.Add(row);
                 }
 
-                sheetUpdater.ClearRange($"{initiative}", "F43:O1000");
+                sheetUpdater.ClearRange($"{initiative}", "F43:P1000");
                 sheetUpdater.EditSheet($"'{initiative}'!G43", childrenArray, true);
             }
         }
