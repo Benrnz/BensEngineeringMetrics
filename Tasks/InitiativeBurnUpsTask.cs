@@ -69,12 +69,13 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                         null,
                         null,
                         child.StoryPoints,
-                        child.Status
+                        child.Status,
+                        child.Team
                     };
                     childrenArray.Add(row);
                 }
 
-                sheetUpdater.ClearRange($"{initiative}", "F43:M1000");
+                sheetUpdater.ClearRange($"{initiative}", "F43:O1000");
                 sheetUpdater.EditSheet($"'{initiative}'!G43", childrenArray, true);
             }
         }
