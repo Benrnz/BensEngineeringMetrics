@@ -244,7 +244,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
     {
         if (args.Length <= 1)
         {
-            this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1));
+            this.startDate = DateUtils.StartOfMonth(DateTimeOffset.Now);
             this.endDate = DateUtils.EndOfMonth(this.startDate);
             return false;
         }
