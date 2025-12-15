@@ -114,8 +114,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             chartData.Add([group.Initiative, null, group.StoryPointTotal, group.TicketCount]);
         }
 
-        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A72", chartData, true);
-        await sheetUpdater.BoldCellsFormat(PiechartSheetTab, 71, 72, 0, 4);
+        sheetUpdater.EditSheet($"'{PiechartSheetTab}'!A50", chartData, true);
+        await sheetUpdater.BoldCellsFormat(PiechartSheetTab, 49, 50, 0, 4);
     }
 
     private async Task GetDataAndCreateMonthTicketSheet(string sheetName, string monthName)
