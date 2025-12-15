@@ -4,8 +4,11 @@ using System.Text.Json.Nodes;
 
 namespace BensEngineeringMetrics.Jira;
 
-public class JiraQueryDynamicRunner : IJiraQueryRunner
+internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : IJiraQueryRunner
 {
+    /// <summary>
+    ///     Used for mapping fields from Json into a dynamic object.
+    /// </summary>
     private SortedList<string, IFieldMapping[]> fieldAliases = new();
 
     private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
@@ -18,20 +21,62 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             return null;
         }
 
-        var json = JsonNode.Parse(result);
-        if (json is null)
+        return jsonMapper.CreateAgileSprintFromJsonNode(JsonNode.Parse(result));
+    }
+
+    public async Task<IEnumerable<BasicJiraInitiative>> GetOpenInitiatives()
+    {
+        var jql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
+        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+        var initiatives = new List<BasicJiraInitiative>();
+
+        await GetSomethingFromJira(jsonElement =>
+            {
+                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "outwardIssue", _ => true));
+            },
+            jql,
+            fields);
+
+        return initiatives;
+    }
+
+    public async Task<IEnumerable<BasicJiraTicketWithParent>> GetEpicChildren(string[] epicKeys)
+    {
+        var jql = $"""parent IN ({string.Join(',', epicKeys)}) Order By key""";
+        if (jql.Length < 25)
         {
-            return null;
+            return [];
         }
 
-        var records = json["total"]!.GetValue<int>();
-        if (records == 0)
-        {
-            return null;
-        }
+        IFieldMapping[] fields = [JiraFields.IssueType, JiraFields.Summary, JiraFields.ParentKey, JiraFields.Status];
+        var issues = new List<BasicJiraTicketWithParent>();
 
-        var values = json["values"]?[0] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
-        return CreateAgileSprintFromJsonNode(values);
+        await GetSomethingFromJira(jsonElement =>
+            {
+                issues.Add(jsonMapper.CreateBasicTicketFromJsonElement(jsonElement));
+            },
+            jql,
+            fields);
+
+        return issues;
+    }
+
+    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas()
+    {
+        var jql = """project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) ORDER BY key""";
+        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+        var initiatives = new List<BasicJiraPmPlan>();
+
+        await GetSomethingFromJira(jsonElement =>
+            {
+                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue", type => type != Constants.ProductInitiativeType);
+                // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
+                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
+            },
+            jql,
+            fields);
+
+        return initiatives;
     }
 
     public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)
@@ -42,11 +87,11 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         var results = new List<dynamic>();
 
         this.fieldAliases = new SortedList<string, IFieldMapping[]>();
-        // There might be more than one mapping per field.  This is because we might be flattening an object with many fields into a multiple top level properties.
         foreach (var field in fields)
         {
             if (this.fieldAliases.ContainsKey(field.Field))
             {
+                // This is to cater for flattening a single JsonObject into two or more fields. Ex: Sprint - need sprint name and sprint start date.
                 this.fieldAliases[field.Field] = this.fieldAliases[field.Field].Append(field).ToArray();
             }
             else
@@ -81,13 +126,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             return null;
         }
 
-        var json = JsonNode.Parse(result);
-        if (json is null)
-        {
-            return null;
-        }
-
-        return CreateAgileSprintFromJsonNode(json);
+        return jsonMapper.CreateAgileSprintFromJsonNode(JsonNode.Parse(result));
     }
 
     public async Task<IReadOnlyList<AgileSprint>> GetAllSprints(int boardId)
@@ -147,23 +186,10 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         var sprints = new List<AgileSprint>();
         foreach (var jsonValue in values)
         {
-            sprints.Add(CreateAgileSprintFromJsonNode(jsonValue));
+            sprints.Add(jsonMapper.CreateAgileSprintFromJsonNode(jsonValue));
         }
 
         return sprints.OrderByDescending(s => s.StartDate).ToList();
-    }
-
-    private AgileSprint CreateAgileSprintFromJsonNode(JsonNode jsonValue)
-    {
-        return new AgileSprint(
-            jsonValue["id"]!.GetValue<int>(),
-            jsonValue["state"]?.GetValue<string?>() ?? string.Empty,
-            jsonValue["name"]?.GetValue<string?>() ?? string.Empty,
-            jsonValue["startDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            jsonValue["endDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            CompleteDate: jsonValue["completeDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            BoardId: jsonValue["originBoardId"]?.GetValue<int?>() ?? 0,
-            Goal: jsonValue["goal"]?.GetValue<string?>() ?? string.Empty);
     }
 
     private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName, string childField)
@@ -172,6 +198,11 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         foreach (var item in element.EnumerateArray())
         {
             list.Add(DeserializeToDynamic(item, propertyName));
+        }
+
+        if (string.IsNullOrEmpty(childField))
+        {
+            return string.Join(",", list);
         }
 
         var flattened = list
@@ -295,6 +326,27 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         }
 
         return field;
+    }
+
+    private async Task GetSomethingFromJira(Action<JsonElement> callBackActionForEachIssue, string jql, IFieldMapping[] fields)
+    {
+        string? nextPageToken = null;
+        bool isLastPage;
+        var client = new JiraApiClient();
+        do
+        {
+            var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(f => f.Field).ToArray(), nextPageToken);
+
+            using var doc = JsonDocument.Parse(responseJson);
+            var issues = doc.RootElement.GetProperty("issues");
+            isLastPage = doc.RootElement.TryGetProperty("isLast", out var isLastPageToken) && isLastPageToken.GetBoolean();
+            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
+
+            foreach (var issue in issues.EnumerateArray())
+            {
+                callBackActionForEachIssue(issue);
+            }
+        } while (!isLastPage || nextPageToken != null);
     }
 
     private bool PropertyShouldBeFlattened(string field, out IEnumerable<string> childFields)

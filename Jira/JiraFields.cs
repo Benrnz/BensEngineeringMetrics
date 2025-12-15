@@ -15,9 +15,14 @@ public static class JiraFields
     public static readonly FieldMapping<string> DevTimeSpent = new FieldMappingWithParser<string> { Field = "customfield_11934", Alias = "DevTimeSpent", Parser = ParseDevTimeSpent };
     public static readonly FieldMapping<string> EstimationStatus = new() { Field = "customfield_12137", Alias = "EstimationStatus", FlattenField = "value" };
     public static readonly FieldMapping<int> FlagCount = new FieldMappingWithParser<int> { Field = "customfield_12236", Alias = "FlagCount", Parser = ParseFlagCount };
+
+    public static readonly FieldMapping<string> InitiativeChildren = new FieldMappingWithParser<string>
+        { Field = "issuelinks", Alias = "Children", FlattenField = "outwardIssue", Parser = ParseInitiativeChildren };
+
     public static readonly FieldMapping<bool> IsReqdForGoLive = new FieldMappingWithParser<bool> { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping<string> IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
     public static readonly FieldMapping<string> Key = new FieldMappingWithParser<string> { Field = "key", Alias = "Key", Parser = ParseKey };
+    public static readonly FieldMapping<string> Labels = new() { Field = "labels", Alias = "Labels" };
     public static readonly FieldMapping<long> OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
     public static readonly FieldMapping<string> ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping<double> PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
@@ -41,6 +46,7 @@ public static class JiraFields
     public static readonly FieldMapping<string> Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping<string> Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
     public static readonly FieldMapping<DateTimeOffset> UpdatedDate = new() { Field = "updated", Alias = "UpdatedDate" };
+    public static readonly FieldMapping<string> WorkDoneBy = new() { Field = "customfield_11702", Alias = "WorkDoneBy", FlattenField = "displayName" };
 
     private static bool DynamicHasField(dynamic d, string fieldName)
     {
@@ -135,6 +141,11 @@ public static class JiraFields
         }
 
         throw new NotSupportedException("Incorrect data type for FlagCount.");
+    }
+
+    private static string ParseInitiativeChildren(dynamic d)
+    {
+        throw new NotSupportedException("Parsing issueLinks dynamically is not supported. Rather use public async Task<IEnumerable<JiraInitiative>> GetOpenInitiatives().");
     }
 
     private static bool ParseIsReqdForGoLive(dynamic d)

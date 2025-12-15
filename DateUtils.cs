@@ -2,6 +2,11 @@ namespace BensEngineeringMetrics;
 
 public static class DateUtils
 {
+    public static DateTimeOffset EndOfMonth(DateTimeOffset dateTime)
+    {
+        return StartOfMonth(dateTime).AddMonths(1);
+    }
+
     /// <summary>
     ///     Calculates a start date based on a target start date and DateTime.Today. The target date may be shifted back to ensure today's date is included as the last date in a weekly data set.
     ///     This is so the resulting date starts a week prior to today's date, and resulting data with rows for weeks includesf  today's date.
@@ -24,5 +29,10 @@ public static class DateUtils
         var targetDayOfWeek = (int)targetDate.DayOfWeek;
         var daysToSubtract = (targetDayOfWeek - desiredDayOfWeek + 7) % 7;
         return targetDate.AddDays(-daysToSubtract);
+    }
+
+    public static DateTimeOffset StartOfMonth(DateTimeOffset dateTime)
+    {
+        return new DateTimeOffset(dateTime.Year, dateTime.Month, 1, 0, 0, 0, dateTime.Offset);
     }
 }

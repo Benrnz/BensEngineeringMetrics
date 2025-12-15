@@ -3,7 +3,7 @@
 namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
+public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
 {
     private const string KeyString = "PMPLAN_STORIES";
 
@@ -11,10 +11,8 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
     [
         JiraFields.Summary,
         JiraFields.Status,
-        JiraFields.ParentKey,
         JiraFields.StoryPoints,
         JiraFields.OriginalEstimate,
-        JiraFields.Created,
         JiraFields.IssueType,
         JiraFields.ReporterDisplay,
         JiraFields.ParentKey,
@@ -41,7 +39,7 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
         var allIssues = await RetrieveAllStoriesMappingToPmPlan();
         Console.WriteLine($"Found {allIssues.Count} unique stories");
         exporter.SetFileNameMode(FileNameMode.Hint, Key);

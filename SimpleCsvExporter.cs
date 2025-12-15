@@ -107,6 +107,12 @@ public class SimpleCsvExporter : ICsvExporter
             {
                 sb.Append(dateTime.ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss"));
             }
+            else if (value is string[] stringArray)
+            {
+                sb.Append("\"");
+                sb.Append(string.Join(",", stringArray));
+                sb.Append("\"");
+            }
             else if (value is not null)
             {
                 sb.Append(value);

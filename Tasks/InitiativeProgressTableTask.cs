@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
+public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_TABLE";
@@ -33,15 +33,13 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public IDictionary<string, IReadOnlyList<JiraIssue>> AllIssuesData { get; private set; } = new Dictionary<string, IReadOnlyList<JiraIssue>>();
 
-    public Guid Id => Guid.NewGuid();
-
     public string Description => "Export and update Initiative level PMPLAN data for drawing feature-set release _burn-up_charts_";
 
     public string Key => TaskKey;
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
 
         await LoadData();
         await sheetUpdater.Open(GoogleSheetId);

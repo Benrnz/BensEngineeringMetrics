@@ -1,25 +1,22 @@
 ﻿using System.Text.RegularExpressions;
 using Google.Apis.Auth.OAuth2;
-using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Google.Apis.Util.Store;
 using File = System.IO.File;
 
-namespace BensEngineeringMetrics;
+namespace BensEngineeringMetrics.Google;
 
 public class GoogleSheetUpdater : IWorkSheetUpdater
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
     // The scopes required to access and modify Google Sheets.
-    private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
     private static readonly Regex CsvParser = new(@",(?=(?:[^""]*""[^""]*"")*(?![^""]*""))");
+
+    // Batching queues
     private readonly List<(string SheetName, int Column, string Format)> pendingApplyDateFormats = new();
     private readonly List<string> pendingClears = new();
     private readonly List<string> pendingDeleteSheetNames = new();
-
-    // Batching queues
     private readonly List<Request> pendingSpreadsheetRequests = new();
     private readonly List<(ValueRange Range, bool UserMode)> pendingValueUpdates = new();
 
@@ -31,6 +28,12 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
     public async Task Open(string sheetId)
     {
+        if (!string.IsNullOrEmpty(this.googleSheetId) && this.credential is not null)
+        {
+            // Already initialised
+            return;
+        }
+
         Reset();
         this.googleSheetId = sheetId;
         await Authenticate();
@@ -160,38 +163,9 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         this.pendingSpreadsheetRequests.Add(percentFormatRequest);
     }
 
-    public async Task<bool> DoesSheetExist(string spreadsheetId, string sheetName)
+    public async Task<bool> DoesSheetExist(string sheetName)
     {
-        try
-        {
-            using var service = await InitiateService();
-
-            // 1. Create a request to get the spreadsheet metadata.
-            // We use a field mask to limit the response data to ONLY include sheet properties (title).
-            // This makes the API call more performant by reducing the payload size.
-            var getRequest = service.Spreadsheets.Get(spreadsheetId);
-            getRequest.Fields = "sheets.properties.title"; // Field mask
-
-            // 2. Execute the request.
-            var spreadsheet = await getRequest.ExecuteAsync();
-
-            // 3. Check if the Sheets collection exists and iterate through the sheets.
-            if (spreadsheet.Sheets != null)
-            {
-                return spreadsheet.Sheets.Any(sheet => sheet.Properties.Title.Equals(sheetName));
-            }
-
-            // 4. If the loop completes without finding a match, the sheet does not exist.
-            return false;
-        }
-        catch (Exception ex)
-        {
-            // Handle API errors, network issues, or invalid spreadsheet ID
-            Console.WriteLine($"An error occurred: {ex.Message}");
-            // Depending on your application's needs, you might want to rethrow the exception
-            // or return false, assuming an error means the sheet couldn't be confirmed as existing.
-            return false;
-        }
+        return await AuthHelper.DoesSheetExist(this.credential!, this.googleSheetId!, sheetName);
     }
 
     public async Task HideColumn(string sheetName, int column)
@@ -290,7 +264,13 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
     public async Task SubmitBatch()
     {
-        using var service = await InitiateService();
+        if (!this.pendingApplyDateFormats.Any() && !this.pendingClears.Any() && !this.pendingDeleteSheetNames.Any() && !this.pendingSpreadsheetRequests.Any() && !this.pendingValueUpdates.Any())
+        {
+            // Nothing to do
+            return;
+        }
+
+        using var service = AuthHelper.InitiateService(this.googleSheetId, this.credential!);
 
         await SendApplyClearRangeRequests(service);
         await SendApplyValueRangeRequests(service);
@@ -300,37 +280,22 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         Reset();
     }
 
-    private async Task<bool> Authenticate()
+    internal void Reset()
     {
-        if (this.credential is not null)
-        {
-            return true;
-        }
+        this.credential = null;
+        this.googleSheetId = null;
 
-        try
-        {
-            // Load the client secrets file for authentication.
-            await using var stream = new FileStream(ClientSecretsFile, FileMode.Open, FileAccess.Read);
-            // The DataStore stores your authentication token securely.
-            this.credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                (await GoogleClientSecrets.FromStreamAsync(stream)).Secrets,
-                Scopes,
-                "user",
-                CancellationToken.None,
-                new FileDataStore("Sheets.Api.Store"));
-            return true;
-        }
-        catch (FileNotFoundException)
-        {
-            Console.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
-            Console.WriteLine("Please download it from the Google Cloud Console and place it next to the application executable.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred during authentication: {ex.Message}");
-        }
+        this.pendingSpreadsheetRequests.Clear();
+        this.pendingDeleteSheetNames.Clear();
+        this.pendingApplyDateFormats.Clear();
+        this.pendingClears.Clear();
+        this.pendingValueUpdates.Clear();
+        this.sheetNamesToIds.Clear();
+    }
 
-        return false;
+    private async Task Authenticate()
+    {
+        this.credential ??= await AuthHelper.Authenticate(ClientSecretsFile);
     }
 
     /// <summary>
@@ -343,59 +308,17 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             return sheetId;
         }
 
-        using var service = await InitiateService();
+        using var service = AuthHelper.InitiateService(this.googleSheetId, this.credential!);
+        var foundSheetId = await AuthHelper.GetSheetTabId(service, this.googleSheetId!, sheetName);
 
-        // Request only the sheet properties, not all the cell data
-        var request = service.Spreadsheets.Get(this.googleSheetId);
-        request.Fields = "sheets.properties";
-
-        var spreadsheet = await request.ExecuteAsync();
-
-        var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
-
-        if (sheet is not null)
+        if (foundSheetId is not null)
         {
-            this.sheetNamesToIds.Add(sheetName, sheet.Properties.SheetId!.Value);
-            return sheet.Properties.SheetId;
+            this.sheetNamesToIds[sheetName] = foundSheetId.Value;
+            return foundSheetId.Value;
         }
 
         // Sheet name not found
         return null;
-    }
-
-    private async Task<SheetsService> InitiateService()
-    {
-        SheetsService? service = null;
-        try
-        {
-            if (string.IsNullOrEmpty(this.googleSheetId))
-            {
-                throw new InvalidOperationException("Google Sheet ID is not set. Call Open(sheetId) first.");
-            }
-
-            if (!await Authenticate())
-            {
-                throw new ApplicationException("Google API Authentication failed.");
-            }
-
-            service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = this.credential, ApplicationName = Constants.ApplicationName });
-            return service;
-        }
-        catch
-        {
-            service?.Dispose();
-            throw;
-        }
-    }
-
-    private void Reset()
-    {
-        this.pendingSpreadsheetRequests.Clear();
-        this.pendingDeleteSheetNames.Clear();
-        this.pendingApplyDateFormats.Clear();
-        this.pendingClears.Clear();
-        this.pendingValueUpdates.Clear();
-        this.sheetNamesToIds.Clear();
     }
 
     private async Task SendApplyClearRangeRequests(SheetsService service)
