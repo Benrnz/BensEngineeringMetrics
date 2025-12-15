@@ -28,7 +28,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     .OrderBy(i => i.PmPlan)
                     .ThenBy(i => i.ResolvedDateTime)
                     .ThenBy(i => i.CreatedDateTime))
-                .Select(x => new {x.Date, x.TotalDaysEffort, x.WorkCompleted})
+                .Select(x => new { x.Date, x.TotalDaysEffort, x.WorkCompleted })
                 .ToList();
             exporter.SetFileNameMode(FileNameMode.ExactName, initiative);
             var fileName = exporter.Export(chart);
@@ -56,7 +56,8 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     if (currentPmPlan != child.PmPlan)
                     {
                         // new PmPlan header row
-                        var header = new List<object?> { child.PmPlan, child.PmPlanSummary };
+                        var header = new List<object?>
+                            { $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={child.PmPlan}""", child.PmPlanSummary };
                         childrenArray.Add(header);
                         currentPmPlan = child.PmPlan;
                     }

@@ -12,23 +12,15 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             throw new NotSupportedException("No Agile Sprint values returned from API.");
         }
 
-        var records = json["total"]!.GetValue<int>();
-        if (records == 0)
-        {
-            throw new NotSupportedException("No Agile Sprint values returned from API.");
-        }
-
-        var jsonValue = json["values"]?[0] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
-
         return new AgileSprint(
-            jsonValue["id"]!.GetValue<int>(),
-            jsonValue["state"]?.GetValue<string?>() ?? string.Empty,
-            jsonValue["name"]?.GetValue<string?>() ?? string.Empty,
-            jsonValue["startDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            jsonValue["endDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            CompleteDate: jsonValue["completeDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            BoardId: jsonValue["originBoardId"]?.GetValue<int?>() ?? 0,
-            Goal: jsonValue["goal"]?.GetValue<string?>() ?? string.Empty);
+            json["id"]!.GetValue<int>(),
+            json["state"]?.GetValue<string?>() ?? string.Empty,
+            json["name"]?.GetValue<string?>() ?? string.Empty,
+            json["startDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
+            json["endDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
+            CompleteDate: json["completeDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
+            BoardId: json["originBoardId"]?.GetValue<int?>() ?? 0,
+            Goal: json["goal"]?.GetValue<string?>() ?? string.Empty);
     }
 
     public BasicJiraInitiative CreateBasicInitiativeFromJsonElement(JsonElement issue, string linkType, Predicate<string> excludeParentFilter)

@@ -21,7 +21,14 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
             return null;
         }
 
-        return jsonMapper.CreateAgileSprintFromJsonNode(JsonNode.Parse(result));
+        var json = JsonNode.Parse(result) ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
+        var pageValues = json["values"] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
+        if (pageValues.AsArray().Count < 1)
+        {
+            throw new NotSupportedException("No Agile Sprint values returned from API.");
+        }
+
+        return jsonMapper.CreateAgileSprintFromJsonNode(pageValues[0]);
     }
 
     public async Task<IEnumerable<BasicJiraInitiative>> GetOpenInitiatives()

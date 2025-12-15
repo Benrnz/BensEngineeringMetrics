@@ -62,7 +62,12 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             return DateTimeOffset.MinValue;
         }
 
-        return DateTimeOffset.Parse(stringDate);
+        if (DateTimeOffset.TryParse(stringDate, out var result))
+        {
+            return result;
+        }
+
+        return DateTimeOffset.MinValue;
     }
 
     private double GetValueAsDays(JsonNode? node)
@@ -81,13 +86,20 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             {
                 foreach (var team in JiraConfig.Teams)
                 {
-                    var sprint = await runner.GetCurrentSprintForBoard(team.BoardId);
-                    if (sprint is null)
+                    var sprints = (await runner.GetAllSprints(team.BoardId))
+                        .Where(x => x.StartDate <= DateTimeOffset.Now)
+                        .OrderByDescending(x => x.StartDate)
+                        .Take(3)
+                        .ToList();
+
+                    if (!sprints.Any())
                     {
                         continue;
                     }
 
-                    suggestedSprints += $"{team.TeamName}:{sprint.Id} ";
+                    var currentSprint = sprints.First();
+                    var previousSprint = sprints.OrderByDescending(x => x.StartDate).Skip(1).First();
+                    suggestedSprints += $"{team.TeamName}: Current {currentSprint.Id} Previous {previousSprint.Id}. ";
                 }
             }
 
