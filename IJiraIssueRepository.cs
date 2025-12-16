@@ -10,6 +10,9 @@ namespace BensEngineeringMetrics;
 /// </summary>
 public interface IJiraIssueRepository
 {
+    (string? initiativeKey, IJiraKeyedIssue? foundTicket) FindTicketByKey(string key);
+    IReadOnlyDictionary<string, string> LeafTicketToInitiativeMap();
+
     /// <summary>
     ///     Retrieve all OPEN (not done, not cancelled) PMPLAN Initiatives from Jira. These are cached so repeated calls will return from cached data.
     /// </summary>

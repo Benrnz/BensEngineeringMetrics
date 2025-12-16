@@ -1,5 +1,4 @@
 ﻿using BensEngineeringMetrics.Jira;
-using Microsoft.Extensions.Hosting.Internal;
 
 namespace BensEngineeringMetrics.Tasks;
 
@@ -8,7 +7,8 @@ namespace BensEngineeringMetrics.Tasks;
 /// </summary>
 public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo) : IEngineeringMetricsTask
 {
-    private const string GoogleSheetId = "1_ANmhfs-kjyCwntbeS2lM0YYOpeBgCDoasZz5UZpl2g";
+    private const string GoogleSheetIdBms = "1_ANmhfs-kjyCwntbeS2lM0YYOpeBgCDoasZz5UZpl2g";
+    private const string GoogleSheetIdOfficetech = "1stl16wfDseznJn8JxfPabF19V7YK4WMYldZoEzD_wwk";
     private const string TaskKey = "ENG_TASK_ANALYSIS";
     private const string PiechartSheetTab = "Latest Piecharts";
 
@@ -45,31 +45,12 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             loop = ParseArguments(args, loop);
             if (this.startDate == DateTimeOffset.MinValue || this.endDate == DateTimeOffset.MinValue)
             {
+                // User asked to cancel
                 return;
             }
 
-            await sheetUpdater.Open(GoogleSheetId);
-            var monthName = this.startDate.ToString("MMM");
-            var dataSheetName = $"{monthName} JiraIssues";
-            if (await sheetUpdater.DoesSheetExist(dataSheetName))
-            {
-                sheetUpdater.ClearRange(dataSheetName);
-            }
-            else
-            {
-                // Ensure sheet is created first.
-                sheetUpdater.AddSheet(dataSheetName);
-                await sheetUpdater.SubmitBatch();
-            }
-
-            await sheetUpdater.Open(GoogleSheetId);
-
-            await GetDataAndCreateMonthTicketSheet(dataSheetName, monthName);
-            CreateEngineeringExcellencePieChartData();
-            await CreatePmPlanPieChartData();
-
-            sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("G")]]);
-            await sheetUpdater.SubmitBatch();
+            await RunReportForProduct($"{Constants.JavPmJiraProjectKey},{Constants.EngJiraProjectKey}", GoogleSheetIdBms);
+            await RunReportForProduct($"{Constants.OtPmJiraProjectKey},{Constants.OtDoJiraProjectKey}", GoogleSheetIdOfficetech);
         } while (loop);
     }
 
@@ -118,18 +99,49 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         await sheetUpdater.BoldCellsFormat(PiechartSheetTab, 49, 50, 0, 4);
     }
 
-    private async Task GetDataAndCreateMonthTicketSheet(string sheetName, string monthName)
+    private async Task ExportIssueData(string monthName, string dataSheetName)
     {
-        var jql =
-            $"project in (JAVPM,ENG) and type != EPIC AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
-        Console.WriteLine(jql);
-
-        this.issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
+        // Insert PMPLAN Initiative into the issues data
+        var map = jiraRepo.LeafTicketToInitiativeMap();
+        var newListOfIssues = new List<JiraIssue>();
+        foreach (var issue in this.issues)
+        {
+            var newRecord = issue with { PmPlanInitiativeKey = map.GetValueOrDefault(issue.Key, string.Empty) };
+            newListOfIssues.Add(newRecord);
+        }
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}_{monthName}_Issues");
-        var fileName = exporter.Export(this.issues);
+        var fileName = exporter.Export(newListOfIssues);
+        await sheetUpdater.ImportFile($"{dataSheetName}!A1", fileName);
+    }
 
-        await sheetUpdater.ImportFile($"{sheetName}!A1", fileName);
+    private DateTimeOffset GetDateFromConsole(string prompt, bool loop, string commandLineArg)
+    {
+        do
+        {
+            string? dateProvided;
+            if (loop)
+            {
+                Console.WriteLine($"Enter a {prompt}. Or enter to exit.");
+                dateProvided = Console.ReadLine();
+            }
+            else
+            {
+                dateProvided = commandLineArg;
+            }
+
+            if (string.IsNullOrEmpty(dateProvided) || dateProvided == "exit")
+            {
+                return DateTimeOffset.MinValue;
+            }
+
+            if (DateTimeOffset.TryParse(dateProvided, out var result))
+            {
+                return result;
+            }
+
+            Console.WriteLine($"ERROR: Invalid start date provided: {dateProvided}");
+        } while (true);
     }
 
     private void InsertEngineeringExcellenceTable(double totalCount, double totalPoints)
@@ -238,8 +250,6 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         return result;
     }
 
-    private record JiraMonthTicketWithInitiative(string Key, string Initiative, double StoryPoints);
-
     private bool ParseArguments(string[] args, bool loop)
     {
         if (args.Length <= 1)
@@ -271,34 +281,39 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         return true;
     }
 
-    private DateTimeOffset GetDateFromConsole(string prompt, bool loop, string commandLineArg)
+    private async Task RunReportForProduct(string productKeys, string googleSheetId)
     {
-        do
+        await sheetUpdater.Open(googleSheetId);
+        var monthName = this.startDate.ToString("MMM");
+        var dataSheetName = $"{monthName} JiraIssues";
+        if (await sheetUpdater.DoesSheetExist(dataSheetName))
         {
-            string? dateProvided;
-            if (loop)
-            {
-                Console.WriteLine($"Enter a {prompt}. Or enter to exit.");
-                dateProvided = Console.ReadLine();
-            }
-            else
-            {
-                dateProvided = commandLineArg;
-            }
+            sheetUpdater.ClearRange(dataSheetName);
+        }
+        else
+        {
+            // Ensure sheet is created first.
+            sheetUpdater.AddSheet(dataSheetName);
+            await sheetUpdater.SubmitBatch();
+        }
 
-            if (string.IsNullOrEmpty(dateProvided) || dateProvided == "exit")
-            {
-                return DateTimeOffset.MinValue;
-            }
+        await sheetUpdater.Open(googleSheetId);
 
-            if (DateTimeOffset.TryParse(dateProvided, out var result))
-            {
-                return result;
-            }
+        var jql =
+            $"project in ({productKeys}) and type != EPIC AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
+        Console.WriteLine(jql);
+        this.issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
-            Console.WriteLine($"ERROR: Invalid start date provided: {dateProvided}");
-        } while (true);
+        CreateEngineeringExcellencePieChartData();
+        await CreatePmPlanPieChartData();
+
+        await ExportIssueData(monthName, dataSheetName);
+
+        sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("G")]]);
+        await sheetUpdater.SubmitBatch();
     }
+
+    private record JiraMonthTicketWithInitiative(string Key, string Initiative, double StoryPoints);
 
     private record EngineeringTicketTypeChart(string TicketType, double Percentage, int Count, double StoryPointsPercentage);
 
@@ -311,7 +326,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         double StoryPoints,
         string Team,
         string WorkDoneBy,
-        string[] Labels) : IJiraKeyedIssue
+        string[] Labels,
+        string PmPlanInitiativeKey = "") : IJiraKeyedIssue
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {

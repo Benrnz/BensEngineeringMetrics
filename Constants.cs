@@ -9,6 +9,7 @@ public static class Constants
     public const string CodeFixLast6 = "Code Fix - Bug from recent development (past 6 months)";
     public const string DoneStatus = "Done";
     public const string EngineeringExcellenceLabel = "Engineering-Excellence";
+    public const string EngJiraProjectKey = "ENG";
     public const string Envest = "Envest";
     public const string EpicType = "Epic";
     public const string HasDevTeamEstimate = "Dev Team Estimate";
@@ -18,6 +19,7 @@ public static class Constants
     public const string InQaStatus = "In Test";
     public const string Javln = "JAVLN";
     public const string JavPmJiraProjectKey = "JAVPM";
+    public const string OtDoJiraProjectKey = "OTDO";
     public const string OtPmJiraProjectKey = "OTPM";
     public const string ProductInitiativeType = "Product Initiative";
     public const string SchemaTaskType = "Schema Task";

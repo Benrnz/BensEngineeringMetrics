@@ -1,9 +1,35 @@
 ﻿namespace BensEngineeringMetrics.Jira;
 
-public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
+internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
 {
     private List<BasicJiraInitiative> initiatives = new();
     private List<BasicJiraPmPlan> pmPlans = new();
+
+    private IReadOnlyDictionary<string, string> ticketToInitiativeMap = new Dictionary<string, string>();
+
+    public (string? initiativeKey, IJiraKeyedIssue? foundTicket) FindTicketByKey(string key)
+    {
+        // Even though it's possible to use the ticketToInitiativeMap here, I am intentionally looping through the whole collection here as I want to
+        // avoid confusing and difficult to debug LINQ queries. Using this primarily for testing purposes.
+        if (!this.initiatives.Any() || !this.pmPlans.Any())
+        {
+            return (string.Empty, null);
+        }
+
+        foreach (var initiative in this.initiatives)
+        {
+            foreach (var pmPlan in initiative.ChildPmPlans.OfType<BasicJiraPmPlan>())
+            {
+                var ticket = pmPlan.ChildTickets.FirstOrDefault(t => t.Key == key);
+                if (ticket is not null)
+                {
+                    return (initiative.Key, ticket);
+                }
+            }
+        }
+
+        return (string.Empty, null);
+    }
 
     public async Task<IReadOnlyList<BasicJiraInitiative>> OpenInitiatives()
     {
@@ -31,6 +57,27 @@ public class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
         await MapPmPlanIdeasToInitiatives();
 
         return (this.initiatives, this.pmPlans);
+    }
+
+    public IReadOnlyDictionary<string, string> LeafTicketToInitiativeMap()
+    {
+        if (!this.pmPlans.Any())
+        {
+            return new Dictionary<string, string>();
+        }
+
+        if (this.ticketToInitiativeMap.Any())
+        {
+            return this.ticketToInitiativeMap;
+        }
+
+        this.ticketToInitiativeMap = this.initiatives
+            .SelectMany(i => i.ChildPmPlans.OfType<BasicJiraPmPlan>() ?? [], (i, p) => new { InitiativeKey = i.Key, PmPlan = p })
+            .SelectMany(x => x.PmPlan.ChildTickets.OfType<BasicJiraTicket>() ?? [], (x, t) => new { x.InitiativeKey, TicketKey = t.Key })
+            .GroupBy(x => x.TicketKey)
+            .ToDictionary(g => g.Key, g => g.First().InitiativeKey); // choose first if a ticket appears under multiple initiatives
+
+        return this.ticketToInitiativeMap;
     }
 
     private async Task<List<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
