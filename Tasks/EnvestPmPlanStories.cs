@@ -3,10 +3,14 @@
 namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
+public interface IEnvestPmPlanStories
 {
-    private const string KeyString = "PMPLAN_STORIES";
+    IEnumerable<dynamic> PmPlans { get; }
+    Task<IReadOnlyList<EnvestPmPlanStories.JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null);
+}
 
+public class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
+{
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -33,18 +37,6 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
     private IReadOnlyList<JiraIssueWithPmPlan> cachedIssues = [];
 
     public IEnumerable<dynamic> PmPlans { get; private set; } = [];
-
-    public string Key => KeyString;
-    public string Description => "Export _PMPlan_children_stories_";
-
-    public async Task ExecuteAsync(string[] args)
-    {
-        Console.WriteLine($"{Key} - {Description}");
-        var allIssues = await RetrieveAllStoriesMappingToPmPlan();
-        Console.WriteLine($"Found {allIssues.Count} unique stories");
-        exporter.SetFileNameMode(FileNameMode.Hint, Key);
-        exporter.Export(allIssues);
-    }
 
     public async Task<IReadOnlyList<JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
     {

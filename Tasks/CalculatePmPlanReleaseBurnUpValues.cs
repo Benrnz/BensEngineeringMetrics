@@ -1,7 +1,7 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IEngineeringMetricsTask
+public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, IEnvestPmPlanStories pmPlanStoriesTask) : IEngineeringMetricsTask
 {
     private const string KeyString = "PMPLAN_RBURNUP";
 
@@ -37,14 +37,14 @@ public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmP
         Console.WriteLine($"Average Velocity (last 6 weeks): {avgVelocity:N1} story points per sprint");
     }
 
-    private double CalculateCompletedWork(List<ExportPmPlanStories.JiraIssueWithPmPlan> jiraIssues)
+    private double CalculateCompletedWork(List<EnvestPmPlanStories.JiraIssueWithPmPlan> jiraIssues)
     {
         return jiraIssues
             .Where(issue => issue.IsReqdForGoLive && issue is { EstimationStatus: Constants.HasDevTeamEstimate, Status: Constants.DoneStatus })
             .Sum(issue => issue.StoryPoints);
     }
 
-    private double CalculateTotalWorkToBeDone(List<ExportPmPlanStories.JiraIssueWithPmPlan> jiraIssues, IEnumerable<dynamic> pmPlans)
+    private double CalculateTotalWorkToBeDone(List<EnvestPmPlanStories.JiraIssueWithPmPlan> jiraIssues, IEnumerable<dynamic> pmPlans)
     {
         var myList = jiraIssues.ToList();
         var totalWork = myList

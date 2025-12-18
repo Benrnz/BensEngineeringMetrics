@@ -27,10 +27,12 @@ public static class Program
             services.AddTransient<ISheetPieChart, GooglePieChart>();
             services.AddSingleton<IJiraIssueRepository, JiraIssueRepository>();
             services.AddSingleton<IJsonToJiraBasicTypeMapper, JsonToJiraBasicTypeMapper>();
+            services.AddScoped<IEnvestPmPlanStories, EnvestPmPlanStories>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())
             {
+                // Added as singletons to cache their data for repeated use in the same session.
                 services.AddSingleton(taskType);
                 services.AddSingleton<IEngineeringMetricsTask>(sp => (IEngineeringMetricsTask)sp.GetRequiredService(taskType));
             }

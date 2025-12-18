@@ -1,69 +1,72 @@
-﻿using BensEngineeringMetrics.Jira;
+﻿// Disabling this task for now, hasnt been used for months. 18-Dec-25
+// using BensEngineeringMetrics.Jira;
+//
+// namespace BensEngineeringMetrics.Tasks;
+//
+// // ReSharper disable once UnusedType.Global
+// public class ExportActiveSprintTicketsNotPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
+// {
+//     private const string KeyString = "SPRINT";
+//
+//     private static readonly IFieldMapping[] Fields =
+//     [
+//         JiraFields.Summary,
+//         JiraFields.Status,
+//         JiraFields.ParentKey,
+//         JiraFields.StoryPoints,
+//         JiraFields.OriginalEstimate,
+//         JiraFields.Created
+//     ];
+//
+//     private static readonly IFieldMapping[] PmPlanFields =
+//     [
+//         JiraFields.Summary,
+//         JiraFields.Status,
+//         JiraFields.IssueType,
+//         JiraFields.PmPlanHighLevelEstimate,
+//         JiraFields.EstimationStatus,
+//         JiraFields.IsReqdForGoLive
+//     ];
+//
+//     public string Key => KeyString;
+//     public string Description => "Export Any _Sprint_ ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
+//
+//     public async Task ExecuteAsync(string[] args)
+//     {
+//         Console.WriteLine($"{Key} - {Description}");
+//         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
+//         Console.WriteLine(jqlPmPlans);
+//         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+//         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
+//
+//         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+//
+//         var allIssues = new List<dynamic>();
+//         foreach (var pmPlan in pmPlans)
+//         {
+//             var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
+//             Console.WriteLine($"Fetched {children.Count} stories for {pmPlan.key}");
+//             allIssues.AddRange(children);
+//         }
+//
+//         jqlPmPlans = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
+//         var sprintWork = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
+//         var nonEnvestWork = new List<dynamic>();
+//         foreach (var sprintTicket in sprintWork)
+//         {
+//             if (allIssues.All(c => c.key != sprintTicket.key))
+//             {
+//                 nonEnvestWork.Add(sprintTicket);
+//             }
+//         }
+//
+//         Console.WriteLine($"project = JAVPM AND key IN ({string.Join(", ", nonEnvestWork.Select(x => (string)x.key))}) ORDER BY key");
+//
+//         Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
+//
+//         exporter.SetFileNameMode(FileNameMode.Hint, Key);
+//         exporter.Export(nonEnvestWork);
+//     }
+// }
 
-namespace BensEngineeringMetrics.Tasks;
 
-// ReSharper disable once UnusedType.Global
-public class ExportActiveSprintTicketsNotPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
-{
-    private const string KeyString = "SPRINT";
-
-    private static readonly IFieldMapping[] Fields =
-    [
-        JiraFields.Summary,
-        JiraFields.Status,
-        JiraFields.ParentKey,
-        JiraFields.StoryPoints,
-        JiraFields.OriginalEstimate,
-        JiraFields.Created
-    ];
-
-    private static readonly IFieldMapping[] PmPlanFields =
-    [
-        JiraFields.Summary,
-        JiraFields.Status,
-        JiraFields.IssueType,
-        JiraFields.PmPlanHighLevelEstimate,
-        JiraFields.EstimationStatus,
-        JiraFields.IsReqdForGoLive
-    ];
-
-    public string Key => KeyString;
-    public string Description => "Export Any _Sprint_ ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
-
-    public async Task ExecuteAsync(string[] args)
-    {
-        Console.WriteLine($"{Key} - {Description}");
-        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        Console.WriteLine(jqlPmPlans);
-        var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
-        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-
-        var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
-
-        var allIssues = new List<dynamic>();
-        foreach (var pmPlan in pmPlans)
-        {
-            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
-            Console.WriteLine($"Fetched {children.Count} stories for {pmPlan.key}");
-            allIssues.AddRange(children);
-        }
-
-        jqlPmPlans = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
-        var sprintWork = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
-        var nonEnvestWork = new List<dynamic>();
-        foreach (var sprintTicket in sprintWork)
-        {
-            if (allIssues.All(c => c.key != sprintTicket.key))
-            {
-                nonEnvestWork.Add(sprintTicket);
-            }
-        }
-
-        Console.WriteLine($"project = JAVPM AND key IN ({string.Join(", ", nonEnvestWork.Select(x => (string)x.key))}) ORDER BY key");
-
-        Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
-
-        exporter.SetFileNameMode(FileNameMode.Hint, Key);
-        exporter.Export(nonEnvestWork);
-    }
-}
