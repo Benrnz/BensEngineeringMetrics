@@ -61,7 +61,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         // Reset the running total work done before re-running it to get the Envest specific plan.
         this.pmPlans.ToList().ForEach(p => p.RunningTotalWorkDone = p.TotalWorkDone);
 
-        UpdateSheetSprintMasterPlan(this.openFutureSprintTickets.Where(i => i.Customer.Contains(Constants.Envest)), "Sprint-Master-Plan-ENVEST");
+        UpdateSheetSprintMasterPlan(this.openFutureSprintTickets.Where(i => i.Customer is not null && i.Customer.Contains(Constants.Envest)), "Sprint-Master-Plan-ENVEST");
         await sheetUpdater.HideColumn("Sprint-Master-Plan-ENVEST", 4);
         UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
