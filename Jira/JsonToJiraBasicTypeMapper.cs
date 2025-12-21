@@ -30,6 +30,7 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
         var status = string.Empty;
         bool? isReqdForGoLive = null;
         var issueKeyList = new List<IJiraKeyedIssue>();
+        var customers = new List<string>();
         if (issue.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object)
         {
             summary = fields.GetProperty(JiraFields.Summary.Field).GetString();
@@ -38,6 +39,21 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             if (fields.TryGetProperty(JiraFields.IsReqdForGoLive.Field, out var cf) && cf.ValueKind != JsonValueKind.Null)
             {
                 isReqdForGoLive = cf.GetDouble() > 0;
+            }
+
+            if (fields.TryGetProperty(JiraFields.PmPlanCustomer.Field, out var customersField) && customersField.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var customerObj in customersField.EnumerateArray())
+                {
+                    if (customerObj.TryGetProperty("value", out var valueProperty) && valueProperty.ValueKind == JsonValueKind.String)
+                    {
+                        var customerValue = valueProperty.GetString();
+                        if (!string.IsNullOrEmpty(customerValue))
+                        {
+                            customers.Add(customerValue);
+                        }
+                    }
+                }
             }
 
             if (fields.TryGetProperty(JiraFields.InitiativeChildren.Field, out var issueLinks) && issueLinks.ValueKind == JsonValueKind.Array)
@@ -105,7 +121,7 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             status ?? string.Empty,
             isReqdForGoLive ?? false,
             issueLinkKeys,
-            []);
+            customers.ToArray());
     }
 
     public BasicJiraTicketWithParent CreateBasicTicketFromJsonElement(JsonElement issue)
