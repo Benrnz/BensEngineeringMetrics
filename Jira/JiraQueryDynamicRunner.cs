@@ -34,7 +34,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
     public async Task<IEnumerable<BasicJiraInitiative>> GetInitiatives(int monthsOfClosedInitiativesToFetch = 0)
     {
         var jql = """type = "Product Initiative" AND status NOT IN (Cancelled, "Feature Delivered") ORDER BY key""";
-        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren, JiraFields.PmPlanCustomer];
         var initiatives = new List<BasicJiraInitiative>();
 
         await GetSomethingFromJira(eachLinkedIssue =>

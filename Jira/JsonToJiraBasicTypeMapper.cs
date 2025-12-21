@@ -104,7 +104,8 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             summary ?? string.Empty,
             status ?? string.Empty,
             isReqdForGoLive ?? false,
-            issueLinkKeys);
+            issueLinkKeys,
+            []);
     }
 
     public BasicJiraTicketWithParent CreateBasicTicketFromJsonElement(JsonElement issue)

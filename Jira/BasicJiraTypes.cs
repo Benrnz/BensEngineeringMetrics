@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Jira;
 
-public record BasicJiraInitiative(string Key, string Summary, string Status, bool RequiredForGoLive, IReadOnlyList<IJiraKeyedIssue> ChildPmPlans);
+public record BasicJiraInitiative(string Key, string Summary, string Status, bool RequiredForGoLive, IReadOnlyList<IJiraKeyedIssue> ChildPmPlans, string[] Customers);
 
 public record BasicJiraPmPlan(string Key, string Summary, string Status, string IssueType, bool RequiredForGoLive, IReadOnlyList<IJiraKeyedIssue> ChildTickets) : IJiraKeyedIssue;
 
