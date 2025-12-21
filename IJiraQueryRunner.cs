@@ -22,13 +22,21 @@ public interface IJiraQueryRunner
     ///     Retrieve all open Product Ideas from Jira.  A Product Idea is a grouping parent object that is a direct child of a Product Initiative.
     ///     A PmPlan Idea can have many Jira tickets as children that can be epics, stories, bugs, etc. These are not specific to BMS or Officetech.
     /// </summary>
-    Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas();
+    /// <param name="monthsOfClosedIdeasToFetch">
+    ///     Defaults to 0, meaning only open initiatives will be fetched and included. Otherwise specify the number of months to go back and search
+    ///     for recently closed initiatives.
+    /// </param>
+    Task<IEnumerable<BasicJiraPmPlan>> GetIdeas(int monthsOfClosedIdeasToFetch = 0);
 
     /// <summary>
     ///     Retrieve all open Product Initiatives from Jira.  A Product Initiative is a top level object, that
     ///     can have many children PMPLANs. Only Initiatives that are not Cancelled or Done are returned. These are not specific to BMS or Officetech.
     /// </summary>
-    Task<IEnumerable<BasicJiraInitiative>> GetOpenInitiatives();
+    /// <param name="monthsOfClosedInitiativesToFetch">
+    ///     Defaults to 0, meaning only open PmPlan Ideas will be fetched and included. Otherwise specify the number of months to go back and search
+    ///     for recently closed PmPlans Ideas.
+    /// </param>
+    Task<IEnumerable<BasicJiraInitiative>> GetInitiatives(int monthsOfClosedInitiativesToFetch = 0);
 
     Task<AgileSprint?> GetSprintById(int sprintId);
 

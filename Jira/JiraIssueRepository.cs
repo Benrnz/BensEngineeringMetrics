@@ -31,27 +31,27 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
         return (string.Empty, null);
     }
 
-    public async Task<IReadOnlyList<BasicJiraInitiative>> OpenInitiatives()
+    public async Task<IReadOnlyList<BasicJiraInitiative>> GetInitiatives(int monthsOfClosedInitiativesToFetch = 0)
     {
         if (this.initiatives.Any())
         {
             return this.initiatives;
         }
 
-        this.initiatives.AddRange(await runner.GetOpenInitiatives());
+        this.initiatives.AddRange(await runner.GetInitiatives(monthsOfClosedInitiativesToFetch));
         Console.WriteLine($"Retrieved {this.initiatives.Count} initiatives.");
 
         return this.initiatives;
     }
 
-    public async Task<(IReadOnlyList<BasicJiraInitiative> mappedInitiatives, IReadOnlyList<BasicJiraPmPlan> pmPlans)> OpenPmPlans()
+    public async Task<(IReadOnlyList<BasicJiraInitiative> mappedInitiatives, IReadOnlyList<BasicJiraPmPlan> pmPlans)> GetPmPlans(int monthsOfClosedIdeasToFetch = 0)
     {
         if (this.pmPlans.Any())
         {
             return (this.initiatives, this.pmPlans);
         }
 
-        this.pmPlans.AddRange(await runner.GetOpenIdeas());
+        this.pmPlans.AddRange(await runner.GetIdeas(monthsOfClosedIdeasToFetch));
         Console.WriteLine($"Retrieved {this.pmPlans.Count} PmPlan Ideas.");
 
         await MapPmPlanIdeasToInitiatives();

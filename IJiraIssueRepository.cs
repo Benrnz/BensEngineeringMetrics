@@ -11,15 +11,24 @@ namespace BensEngineeringMetrics;
 public interface IJiraIssueRepository
 {
     (string? initiativeKey, IJiraKeyedIssue? foundTicket) FindTicketByKey(string key);
-    IReadOnlyDictionary<string, string> LeafTicketToInitiativeMap();
 
     /// <summary>
     ///     Retrieve all OPEN (not done, not cancelled) PMPLAN Initiatives from Jira. These are cached so repeated calls will return from cached data.
     /// </summary>
-    Task<IReadOnlyList<BasicJiraInitiative>> OpenInitiatives();
+    /// <param name="monthsOfClosedInitiativesToFetch">
+    ///     Defaults to 0, meaning only open initiatives will be fetched and included. Otherwise specify the number of months to go back and search
+    ///     for recently closed initiatives.
+    /// </param>
+    Task<IReadOnlyList<BasicJiraInitiative>> GetInitiatives(int monthsOfClosedInitiativesToFetch = 0);
 
     /// <summary>
     ///     Retrieve all OPEN (not done, not cancelled) PMPLAN Ideas from Jira. These are cached so repeated calls will return from cached data.
     /// </summary>
-    Task<(IReadOnlyList<BasicJiraInitiative> mappedInitiatives, IReadOnlyList<BasicJiraPmPlan> pmPlans)> OpenPmPlans();
+    /// <param name="monthsOfClosedIdeasToFetch">
+    ///     Defaults to 0, meaning only open PmPlan Ideas will be fetched and included. Otherwise specify the number of months to go back and search
+    ///     for recently closed PmPlans Ideas.
+    /// </param>
+    Task<(IReadOnlyList<BasicJiraInitiative> mappedInitiatives, IReadOnlyList<BasicJiraPmPlan> pmPlans)> GetPmPlans(int monthsOfClosedIdeasToFetch = 0);
+
+    IReadOnlyDictionary<string, string> LeafTicketToInitiativeMap();
 }

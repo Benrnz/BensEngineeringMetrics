@@ -31,15 +31,23 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
         return jsonMapper.CreateAgileSprintFromJsonNode(pageValues[0]);
     }
 
-    public async Task<IEnumerable<BasicJiraInitiative>> GetOpenInitiatives()
+    public async Task<IEnumerable<BasicJiraInitiative>> GetInitiatives(int monthsOfClosedInitiativesToFetch = 0)
     {
-        var jql = "type = \"Product Initiative\" AND status NOT IN (Cancelled, \"Feature Delivered\") ORDER BY key";
+        var jql = """type = "Product Initiative" AND status NOT IN (Cancelled, "Feature Delivered") ORDER BY key""";
         IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
         var initiatives = new List<BasicJiraInitiative>();
 
-        await GetSomethingFromJira(jsonElement =>
+        await GetSomethingFromJira(eachLinkedIssue =>
             {
-                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "outwardIssue", _ => true));
+                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "outwardIssue", _ => true));
+            },
+            jql,
+            fields);
+
+        jql = """type = "Product Initiative" AND status IN (Cancelled, "Feature Delivered") AND resolved >= -{monthsOfClosedInitiativesToFetch}M ORDER BY key""";
+        await GetSomethingFromJira(eachLinkedIssue =>
+            {
+                initiatives.Add(jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "outwardIssue", _ => true));
             },
             jql,
             fields);
@@ -58,9 +66,9 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
         IFieldMapping[] fields = [JiraFields.IssueType, JiraFields.Summary, JiraFields.ParentKey, JiraFields.Status];
         var issues = new List<BasicJiraTicketWithParent>();
 
-        await GetSomethingFromJira(jsonElement =>
+        await GetSomethingFromJira(eachIssue =>
             {
-                issues.Add(jsonMapper.CreateBasicTicketFromJsonElement(jsonElement));
+                issues.Add(jsonMapper.CreateBasicTicketFromJsonElement(eachIssue));
             },
             jql,
             fields);
@@ -68,15 +76,25 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
         return issues;
     }
 
-    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas()
+    public async Task<IEnumerable<BasicJiraPmPlan>> GetIdeas(int monthsOfClosedIdeasToFetch = 0)
     {
         var jql = """project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) ORDER BY key""";
         IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
         var initiatives = new List<BasicJiraPmPlan>();
 
-        await GetSomethingFromJira(jsonElement =>
+        await GetSomethingFromJira(eachLinkedIssue =>
             {
-                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue", type => type != Constants.ProductInitiativeType);
+                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "inwardIssue", type => type != Constants.ProductInitiativeType);
+                // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
+                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
+            },
+            jql,
+            fields);
+
+        jql = """project = "PMPLAN" AND type = idea AND status IN ("Feature delivered", Cancelled) AND resolved >= -{monthsOfClosedIdeasToFetch}M ORDER BY key""";
+        await GetSomethingFromJira(eachLinkedIssue =>
+            {
+                var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "inwardIssue", type => type != Constants.ProductInitiativeType);
                 // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
                 initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
             },

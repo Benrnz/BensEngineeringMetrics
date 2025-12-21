@@ -78,8 +78,8 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
     private async Task CreatePmPlanPieChartData()
     {
-        await jiraRepo.OpenInitiatives();
-        var (openInitiatives, _) = await jiraRepo.OpenPmPlans();
+        await jiraRepo.GetInitiatives();
+        var (openInitiatives, _) = await jiraRepo.GetPmPlans();
 
         var listOfInterest = MapJiraIssuesToPmPlans(openInitiatives);
         var groupedByInitiative = listOfInterest.GroupBy(x => x.Initiative)
