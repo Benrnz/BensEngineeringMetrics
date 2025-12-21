@@ -1,7 +1,7 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, IEnvestPmPlanStories pmPlanStoriesTask) : IEngineeringMetricsTask
+internal class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, IEnvestPmPlanStories pmPlanStoriesTask) : IEngineeringMetricsTask
 {
     private const string KeyString = "PMPLAN_RBURNUP";
 
@@ -18,14 +18,13 @@ public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, IEnvestPm
 
         var totalWork = CalculateTotalWorkToBeDone(javPms, pmPlanStoriesTask.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);
-        var highLevelEstimates = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate > 0);
-        var noEstimates = pmPlanStoriesTask.PmPlans.Count(p =>
-            p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && (p.PmPlanHighLevelEstimate is null || p.PmPlanHighLevelEstimate == 0));
-        var specedAndEstimated = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus == Constants.HasDevTeamEstimate);
+        var highLevelEstimates = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate > 0);
+        var noEstimates = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate == 0);
+        var specedAndEstimated = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive && p.EstimationStatus == Constants.HasDevTeamEstimate);
         var storiesWithNoEstimate = javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus && i.StoryPoints == 0);
-        var avgVelocity = javPms.Where(i => i.Status == Constants.DoneStatus && i.CreatedDateTime >= DateTimeOffset.Now.AddDays(-42))
-                              .Sum(i => i.StoryPoints)
-                          / 3.0; // 6 weeks or 3 sprints.
+        var avgVelocity = javPms
+                              .Where(i => i.Status == Constants.DoneStatus && i.CreatedDateTime >= DateTimeOffset.Now.AddDays(-42))
+                              .Sum(i => i.StoryPoints) / 3.0; // 6 weeks or 3 sprints.
 
         Console.WriteLine($"As at {DateTime.Today:d}");
         Console.WriteLine($"Total work to be done: {totalWork}");
@@ -44,14 +43,14 @@ public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, IEnvestPm
             .Sum(issue => issue.StoryPoints);
     }
 
-    private double CalculateTotalWorkToBeDone(List<EnvestPmPlanStories.JiraIssueWithPmPlan> jiraIssues, IEnumerable<dynamic> pmPlans)
+    private double CalculateTotalWorkToBeDone(List<EnvestPmPlanStories.JiraIssueWithPmPlan> jiraIssues, IEnumerable<EnvestPmPlanStories.JiraPmPlan> pmPlans)
     {
         var myList = jiraIssues.ToList();
-        var totalWork = myList
-            .Where(issue => issue is { IsReqdForGoLive: true, EstimationStatus: Constants.HasDevTeamEstimate })
-            .Sum(issue => issue.StoryPoints);
+        var totalWorkList = myList
+            .Where(issue => issue is { IsReqdForGoLive: true, EstimationStatus: Constants.HasDevTeamEstimate });
+        var totalWork = totalWorkList.Sum(issue => issue.StoryPoints);
 
-        totalWork += pmPlans.Where(p => (double?)p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate).Sum(p => (double?)p.PmPlanHighLevelEstimate ?? 0.0);
+        totalWork += pmPlans.Where(p => p.IsReqdForGoLive && p.EstimationStatus != Constants.HasDevTeamEstimate).Sum(p => p.PmPlanHighLevelEstimate);
 
         return totalWork;
     }

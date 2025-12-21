@@ -3,13 +3,13 @@
 namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public interface IEnvestPmPlanStories
+internal interface IEnvestPmPlanStories
 {
-    IEnumerable<dynamic> PmPlans { get; }
+    IEnumerable<EnvestPmPlanStories.JiraPmPlan> PmPlans { get; }
     Task<IReadOnlyList<EnvestPmPlanStories.JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null);
 }
 
-public class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
+internal class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
 {
     private static readonly IFieldMapping[] Fields =
     [
@@ -36,7 +36,7 @@ public class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
 
     private IReadOnlyList<JiraIssueWithPmPlan> cachedIssues = [];
 
-    public IEnumerable<dynamic> PmPlans { get; private set; } = [];
+    public IEnumerable<JiraPmPlan> PmPlans { get; private set; } = [];
 
     public async Task<IReadOnlyList<JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
     {
@@ -50,16 +50,16 @@ public class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
         Console.WriteLine(jqlPmPlans);
         var childrenJql = $"project=JAVPM AND (issue in (linkedIssues(\"{{0}}\")) OR parent in (linkedIssues(\"{{0}}\"))) {additionalCriteria} ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        PmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+        PmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(JiraPmPlan.Create);
 
         var allIssues = new Dictionary<string, JiraIssueWithPmPlan>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
         foreach (var pmPlan in PmPlans)
         {
-            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
-            Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
+            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
+            Console.WriteLine($"Fetched {children.Count} children for {pmPlan.Key}");
             foreach (var child in children)
             {
-                JiraIssueWithPmPlan issue = CreateJiraIssueWithPmPlan(child, pmPlan);
+                JiraIssueWithPmPlan issue = JiraIssueWithPmPlan.Create(child, pmPlan);
                 allIssues.TryAdd(issue.Key, issue);
             }
         }
@@ -67,27 +67,20 @@ public class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
         return this.cachedIssues = allIssues.Values.ToList();
     }
 
-    private JiraIssueWithPmPlan CreateJiraIssueWithPmPlan(dynamic i, dynamic pmPlan)
+    internal record JiraPmPlan(string Key, string Summary, bool IsReqdForGoLive, string EstimationStatus, double PmPlanHighLevelEstimate)
     {
-        var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
-
-        var typedIssue = new JiraIssueWithPmPlan(
-            pmPlan.key,
-            JiraFields.Key.Parse(i),
-            JiraFields.Summary.Parse(i),
-            JiraFields.Status.Parse(i),
-            JiraFields.IssueType.Parse(i),
-            storyPointsField,
-            JiraFields.IsReqdForGoLive.Parse(pmPlan),
-            JiraFields.EstimationStatus.Parse(pmPlan),
-            JiraFields.PmPlanHighLevelEstimate.Parse(pmPlan),
-            JiraFields.Created.Parse(i),
-            JiraFields.Summary.Parse(pmPlan),
-            JiraFields.ParentKey.Parse(i));
-        return typedIssue;
+        public static JiraPmPlan Create(dynamic i)
+        {
+            return new JiraPmPlan(
+                JiraFields.Key.Parse(i),
+                JiraFields.Summary.Parse(i),
+                JiraFields.IsReqdForGoLive.Parse(i),
+                JiraFields.EstimationStatus.Parse(i) ?? string.Empty,
+                JiraFields.PmPlanHighLevelEstimate.Parse(i) ?? 0.0);
+        }
     }
 
-    public record JiraIssueWithPmPlan(
+    internal record JiraIssueWithPmPlan(
         string PmPlan,
         string Key,
         string Summary,
@@ -99,5 +92,27 @@ public class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
         double PmPlanHighLevelEstimate,
         DateTimeOffset CreatedDateTime,
         string PmPlanSummary,
-        string? ParentEpic = null);
+        string? ParentEpic = null)
+    {
+        public static JiraIssueWithPmPlan Create(dynamic i, JiraPmPlan pmPlan)
+        {
+            var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
+
+            var typedIssue = new JiraIssueWithPmPlan(
+                pmPlan.Key,
+                JiraFields.Key.Parse(i),
+                JiraFields.Summary.Parse(i),
+                JiraFields.Status.Parse(i),
+                JiraFields.IssueType.Parse(i),
+                storyPointsField,
+                pmPlan.IsReqdForGoLive,
+                pmPlan.EstimationStatus,
+                pmPlan.PmPlanHighLevelEstimate,
+                JiraFields.Created.Parse(i),
+                pmPlan.Summary,
+                JiraFields.ParentKey.Parse(i));
+            return typedIssue;
+        }
+
+    }
 }
