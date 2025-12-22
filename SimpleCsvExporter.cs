@@ -6,8 +6,6 @@ namespace BensEngineeringMetrics;
 
 public class SimpleCsvExporter : ICsvExporter
 {
-    private const string DefaultFolder = "C:\\Downloads\\JiraExports";
-
     private FileNameMode fileNameMode = FileNameMode.Hint;
 
     private string nameHint = Assembly.GetCallingAssembly().FullName!;
@@ -38,7 +36,7 @@ public class SimpleCsvExporter : ICsvExporter
                 break;
         }
 
-        var pathAndFileName = $"{DefaultFolder}\\{fileName}.csv";
+        var pathAndFileName = $"{App.DefaultFolder}\\{fileName}.csv";
         WriteCsv(pathAndFileName, data, overrideSerialiseHeader, overrideSerialiseRecord);
         Console.WriteLine(Path.GetFullPath(pathAndFileName));
         return pathAndFileName;

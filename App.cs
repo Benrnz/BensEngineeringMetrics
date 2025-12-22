@@ -6,6 +6,8 @@ namespace BensEngineeringMetrics;
 
 public class App(IEnumerable<IEngineeringMetricsTask> tasks)
 {
+    public const string DefaultFolder = "C:\\Downloads\\JiraExports";
+
     public static readonly HttpClient HttpJira = CreateJiraHttpClient();
     public static readonly HttpClient HttpSlack = CreateSlackHttpClient();
 
