@@ -4,17 +4,11 @@ using System.Text.RegularExpressions;
 
 namespace BensEngineeringMetrics.Jira;
 
-public class JiraApiClient
+public class JiraApiClient(bool enableRecording = false)
 {
     private const string BaseApi3Url = "https://javlnsupport.atlassian.net/rest/api/3/";
     private const string BaseAgileUrl = "https://javlnsupport.atlassian.net/rest/agile/1.0/";
-    private readonly bool enableRecording;
     private string? logFilePath;
-
-    public JiraApiClient(bool enableRecording = false)
-    {
-        this.enableRecording = enableRecording;
-    }
 
     public async Task<string> GetAgileBoardActiveSprintAsync(int boardId)
     {
@@ -80,12 +74,12 @@ public class JiraApiClient
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync();
-        
-        if (this.enableRecording)
+
+        if (enableRecording)
         {
             await RecordCallAsync(jql, responseJson);
         }
-        
+
         return responseJson;
     }
 
@@ -96,12 +90,12 @@ public class JiraApiClient
         {
             var logsDirectory = Path.Combine(App.DefaultFolder, "Logs");
             Directory.CreateDirectory(logsDirectory);
-            
-            // Sanitize JQL for filename (first 20 characters)
-            var jqlPrefix = jql.Length > 20 ? jql.Substring(0, 20) : jql;
+
+            // Sanitize JQL for filename (first 30 characters)
+            var jqlPrefix = jql.Length > 30 ? jql.Substring(0, 30) : jql;
             var sanitizedJql = SanitizeFileName(jqlPrefix);
-            var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            var fileName = $"{sanitizedJql}-{timestamp}.json";
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-ffff");
+            var fileName = $"{timestamp}_{sanitizedJql}.json";
             this.logFilePath = Path.Combine(logsDirectory, fileName);
         }
 
@@ -114,7 +108,7 @@ public class JiraApiClient
         };
 
         var logJson = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
-        
+
         // Append to file
         await File.AppendAllTextAsync(this.logFilePath, logJson + Environment.NewLine + Environment.NewLine);
     }
@@ -124,11 +118,11 @@ public class JiraApiClient
         // Remove invalid filename characters
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
-        
+
         // Replace spaces and other problematic characters
         sanitized = Regex.Replace(sanitized, @"\s+", "_");
         sanitized = Regex.Replace(sanitized, @"[^\w\-_]", "_");
-        
+
         return sanitized;
     }
 

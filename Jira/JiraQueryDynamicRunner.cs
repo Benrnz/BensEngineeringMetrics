@@ -116,7 +116,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
     {
         string? nextPageToken = null;
         bool isLastPage;
-        var client = new JiraApiClient();
+        var client = new JiraApiClient(true);
         var results = new List<dynamic>();
 
         this.fieldAliases = new SortedList<string, IFieldMapping[]>();
