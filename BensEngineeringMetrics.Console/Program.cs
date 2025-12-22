@@ -27,7 +27,8 @@ public static class Program
             services.AddTransient<ISheetPieChart, GooglePieChart>();
             services.AddSingleton<IJiraIssueRepository, JiraIssueRepository>();
             services.AddSingleton<IJsonToJiraBasicTypeMapper, JsonToJiraBasicTypeMapper>();
-            services.AddScoped<IEnvestPmPlanStories, EnvestPmPlanStories>();
+            services.AddSingleton<IEnvestPmPlanStories, EnvestPmPlanStories>();
+            services.AddTransient<IApiClientFactory, JiraApiClientFactory>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())

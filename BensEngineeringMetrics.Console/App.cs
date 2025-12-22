@@ -2,6 +2,8 @@
 using System.Net.Http.Headers;
 using System.Text;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("BensEngineeringMetrics.Test")]
+
 namespace BensEngineeringMetrics;
 
 public class App(IEnumerable<IEngineeringMetricsTask> tasks)

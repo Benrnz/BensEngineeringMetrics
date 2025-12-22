@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace BensEngineeringMetrics.Jira;
 
-internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : IJiraQueryRunner
+internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IApiClientFactory clientFactory) : IJiraQueryRunner
 {
     /// <summary>
     ///     Used for mapping fields from Json into a dynamic object.
@@ -15,7 +15,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
 
     public async Task<AgileSprint?> GetCurrentSprintForBoard(int boardId)
     {
-        var result = await new JiraApiClient().GetAgileBoardActiveSprintAsync(boardId);
+        var result = await clientFactory.CreateJiraApiClient().GetAgileBoardActiveSprintAsync(boardId);
         if (string.IsNullOrEmpty(result))
         {
             return null;
@@ -116,7 +116,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
     {
         string? nextPageToken = null;
         bool isLastPage;
-        var client = new JiraApiClient(true);
+        var client = clientFactory.CreateJiraApiClient();
         var results = new List<dynamic>();
 
         this.fieldAliases = new SortedList<string, IFieldMapping[]>();
@@ -153,7 +153,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
 
     public async Task<AgileSprint?> GetSprintById(int sprintId)
     {
-        var result = await new JiraApiClient().GetAgileBoardSprintByIdAsync(sprintId);
+        var result = await clientFactory.CreateJiraApiClient().GetAgileBoardSprintByIdAsync(sprintId);
         if (string.IsNullOrEmpty(result))
         {
             return null;
@@ -165,7 +165,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
     public async Task<IReadOnlyList<AgileSprint>> GetAllSprints(int boardId)
     {
         var values = new List<JsonNode>();
-        var apiClient = new JiraApiClient();
+        var apiClient = clientFactory.CreateJiraApiClient();
 
         var start = 0;
         var pageSize = 50;
@@ -365,7 +365,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
     {
         string? nextPageToken = null;
         bool isLastPage;
-        var client = new JiraApiClient();
+        var client = clientFactory.CreateJiraApiClient();
         do
         {
             var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(f => f.Field).ToArray(), nextPageToken);

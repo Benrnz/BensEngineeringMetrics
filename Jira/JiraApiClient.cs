@@ -49,7 +49,7 @@ public class JiraApiClient(bool enableRecording = false)
         return await response.Content.ReadAsStringAsync();
     }
 
-    public async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
+    public virtual async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
     {
         var requestBody = new
         {
@@ -77,13 +77,13 @@ public class JiraApiClient(bool enableRecording = false)
 
         if (enableRecording)
         {
-            await RecordCallAsync(jql, responseJson);
+            await RecordCallAsync(jql, nextPageToken, responseJson);
         }
 
         return responseJson;
     }
 
-    private async Task RecordCallAsync(string jql, string responseJson)
+    private async Task RecordCallAsync(string jql, string? nextPageToken, string responseJson)
     {
         // Initialize log file path on first call
         if (this.logFilePath is null)
@@ -95,7 +95,7 @@ public class JiraApiClient(bool enableRecording = false)
             var jqlPrefix = jql.Length > 30 ? jql.Substring(0, 30) : jql;
             var sanitizedJql = SanitizeFileName(jqlPrefix);
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-ffff");
-            var fileName = $"{timestamp}_{sanitizedJql}.json";
+            var fileName = $"{timestamp}_{sanitizedJql}.log";
             this.logFilePath = Path.Combine(logsDirectory, fileName);
         }
 
@@ -104,6 +104,7 @@ public class JiraApiClient(bool enableRecording = false)
         {
             timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             jql,
+            nextPageToken,
             response = responseJson
         };
 
