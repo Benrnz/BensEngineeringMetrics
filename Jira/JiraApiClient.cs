@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace BensEngineeringMetrics.Jira;
 
@@ -7,6 +8,13 @@ public class JiraApiClient
 {
     private const string BaseApi3Url = "https://javlnsupport.atlassian.net/rest/api/3/";
     private const string BaseAgileUrl = "https://javlnsupport.atlassian.net/rest/agile/1.0/";
+    private readonly bool enableRecording;
+    private string? logFilePath;
+
+    public JiraApiClient(bool enableRecording = false)
+    {
+        this.enableRecording = enableRecording;
+    }
 
     public async Task<string> GetAgileBoardActiveSprintAsync(int boardId)
     {
@@ -72,7 +80,56 @@ public class JiraApiClient
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync();
+        
+        if (this.enableRecording)
+        {
+            await RecordCallAsync(jql, responseJson);
+        }
+        
         return responseJson;
+    }
+
+    private async Task RecordCallAsync(string jql, string responseJson)
+    {
+        // Initialize log file path on first call
+        if (this.logFilePath is null)
+        {
+            var logsDirectory = Path.Combine(App.DefaultFolder, "Logs");
+            Directory.CreateDirectory(logsDirectory);
+            
+            // Sanitize JQL for filename (first 20 characters)
+            var jqlPrefix = jql.Length > 20 ? jql.Substring(0, 20) : jql;
+            var sanitizedJql = SanitizeFileName(jqlPrefix);
+            var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var fileName = $"{sanitizedJql}-{timestamp}.json";
+            this.logFilePath = Path.Combine(logsDirectory, fileName);
+        }
+
+        // Create log entry
+        var logEntry = new
+        {
+            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            jql,
+            response = responseJson
+        };
+
+        var logJson = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+        
+        // Append to file
+        await File.AppendAllTextAsync(this.logFilePath, logJson + Environment.NewLine + Environment.NewLine);
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        // Remove invalid filename characters
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+        
+        // Replace spaces and other problematic characters
+        sanitized = Regex.Replace(sanitized, @"\s+", "_");
+        sanitized = Regex.Replace(sanitized, @"[^\w\-_]", "_");
+        
+        return sanitized;
     }
 
     // New private helper: get sprints for a specific state with paging
