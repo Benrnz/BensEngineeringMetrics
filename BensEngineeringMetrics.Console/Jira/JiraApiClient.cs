@@ -49,7 +49,7 @@ public class JiraApiClient(bool enableRecording = false)
         return await response.Content.ReadAsStringAsync();
     }
 
-    public async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
+    public virtual async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
     {
         var requestBody = new
         {
