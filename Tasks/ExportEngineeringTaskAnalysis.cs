@@ -7,8 +7,8 @@ namespace BensEngineeringMetrics.Tasks;
 /// </summary>
 public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo) : IEngineeringMetricsTask
 {
-    private const string GoogleSheetIdBms = "1_ANmhfs-kjyCwntbeS2lM0YYOpeBgCDoasZz5UZpl2g";
-    private const string GoogleSheetIdOfficetech = "1stl16wfDseznJn8JxfPabF19V7YK4WMYldZoEzD_wwk";
+    private const string GoogleSheetIdBms = "1p0A4A43L9WQQ17GMUaH5ZeVQdaXbs-ky3GQvgQVpoyk";
+    private const string GoogleSheetIdOfficetech = "1w2-eJHPrn8LesuQD2F1qGlFlUM7-XAyUkTZtYvmQggs";
     private const string TaskKey = "ENG_TASK_ANALYSIS";
     private const string PiechartSheetTab = "Latest Piecharts";
 
