@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\BensEngineeringMetrics.Console\BensEngineeringMetricsConsole.csproj" />
+      <ProjectReference Include="..\BensEngineeringMetrics.Console\BensEngineeringMetrics.Console.csproj" />
     </ItemGroup>
 
 </Project>
