@@ -15,7 +15,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.Created,
         JiraFields.StoryPoints,
         JiraFields.Team,
-        JiraFields.Exalate
+        JiraFields.Exalate,
+        JiraFields.CustomersMultiSelect,
     ];
 
     public string Description => "A report to show tickets that are Sync'ed with Envest via Exalate, and those that likely should be.";
@@ -31,9 +32,9 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
 
         await ExportAllSyncedTickets();
 
-        var (mappedInitiatives, pmPlans) = await jiraRepo.OpenPmPlans();
-
-
+        // Get all tickets that are linked to Initiatives and PM Plans
+        var pmPlans = await runner.GetOpenIdeas("\"PM Customer[Checkboxes]\" = Envest");
+        var tickets = pmPlans.SelectMany(p => p.ChildTickets);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
 
         await sheetUpdater.SubmitBatch();
@@ -55,6 +56,7 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         DateTimeOffset Created,
         double StoryPoints,
         string Team,
+        string Customer,
         string PmPlanInitiativeKey = "") : IJiraKeyedIssue
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
@@ -67,7 +69,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.IssueType.Parse(d),
                 JiraFields.Created.Parse(d),
                 JiraFields.StoryPoints.Parse(d),
-                JiraFields.Team.Parse(d));
+                JiraFields.Team.Parse(d),
+                JiraFields.CustomersMultiSelect.Parse(d));
         }
     }
 }
