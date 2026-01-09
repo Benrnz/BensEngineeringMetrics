@@ -68,15 +68,17 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
         return issues;
     }
 
-    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas(string optionalAdditionalJql = "")
+    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas(string optionalAdditionalJql = "", IFieldMapping[]? fields = null)
     {
         if (!string.IsNullOrEmpty(optionalAdditionalJql))
         {
             optionalAdditionalJql = "AND " + optionalAdditionalJql;
         }
 
+        var queryFields = fields ?? [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+
         var jql = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) {optionalAdditionalJql} ORDER BY key""";
-        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+
         var pmPlanIdeas = new List<BasicJiraPmPlan>();
 
         await GetSomethingFromJira(jsonElement =>
@@ -86,7 +88,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
                 pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
             },
             jql,
-            fields);
+            queryFields);
 
         return pmPlanIdeas;
     }
