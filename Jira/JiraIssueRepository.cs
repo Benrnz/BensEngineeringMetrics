@@ -6,6 +6,7 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
     private List<BasicJiraPmPlan> pmPlans = new();
 
     private IReadOnlyDictionary<string, string> ticketToInitiativeMap = new Dictionary<string, string>();
+    private IReadOnlyDictionary<string, string> ticketToPmPlanMap = new Dictionary<string, string>();
 
     public (string? initiativeKey, IJiraKeyedIssue? foundTicket) FindTicketByKey(string key)
     {
@@ -40,6 +41,10 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
 
         this.initiatives.AddRange(await runner.GetOpenInitiatives());
         Console.WriteLine($"Retrieved {this.initiatives.Count} initiatives.");
+
+        // Clear cached mappings since initiatives changed
+        this.ticketToInitiativeMap = new Dictionary<string, string>();
+        this.ticketToPmPlanMap = new Dictionary<string, string>();
 
         return this.initiatives;
     }
@@ -80,6 +85,27 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
         return this.ticketToInitiativeMap;
     }
 
+    public IReadOnlyDictionary<string, string> LeafTicketToPmPlanMap()
+    {
+        if (!this.pmPlans.Any())
+        {
+            return new Dictionary<string, string>();
+        }
+
+        if (this.ticketToPmPlanMap.Any())
+        {
+            return this.ticketToPmPlanMap;
+        }
+
+        // We treat lowest-level leaf tickets as those that are not Epics (i.e., issue type != Epic). The pmPlans may already contain epics expanded to include their children.
+        this.ticketToPmPlanMap = this.pmPlans
+            .SelectMany(p => p.ChildTickets.OfType<BasicJiraTicket>() ?? [], (p, t) => new { PmPlanKey = p.Key, Ticket = t })
+            .GroupBy(x => x.Ticket.Key)
+            .ToDictionary(g => g.Key, g => g.First().PmPlanKey);
+
+        return this.ticketToPmPlanMap;
+    }
+
     private async Task<List<BasicJiraPmPlan>> ExpandEpicsToIncludeTheirChildren()
     {
         var allEpicKeys = this.pmPlans
@@ -118,6 +144,10 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
         // Loop through all Epics and pull through their children
         var newPmPlanList = await ExpandEpicsToIncludeTheirChildren();
         this.pmPlans = newPmPlanList;
+
+        // Clear cached mappings since pmPlans and initiatives were updated
+        this.ticketToPmPlanMap = new Dictionary<string, string>();
+        this.ticketToInitiativeMap = new Dictionary<string, string>();
 
         // Add PmPlan links into the Initiatives.
         var newInitiativeList = MapPmPlanLinksIntoInitiatives();

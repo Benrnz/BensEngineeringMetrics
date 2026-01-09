@@ -68,22 +68,29 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
         return issues;
     }
 
-    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas()
+    public async Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas(string optionalAdditionalJql = "", IFieldMapping[]? fields = null)
     {
-        var jql = """project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) ORDER BY key""";
-        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
-        var initiatives = new List<BasicJiraPmPlan>();
+        if (!string.IsNullOrEmpty(optionalAdditionalJql))
+        {
+            optionalAdditionalJql = "AND " + optionalAdditionalJql;
+        }
+
+        var queryFields = fields ?? [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+
+        var jql = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) {optionalAdditionalJql} ORDER BY key""";
+
+        var pmPlanIdeas = new List<BasicJiraPmPlan>();
 
         await GetSomethingFromJira(jsonElement =>
             {
                 var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue", type => type != Constants.ProductInitiativeType);
                 // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
-                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
+                pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
             },
             jql,
-            fields);
+            queryFields);
 
-        return initiatives;
+        return pmPlanIdeas;
     }
 
     public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)
