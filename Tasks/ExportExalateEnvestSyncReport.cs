@@ -57,7 +57,10 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
             .Select(JiraIssue.CreateJiraIssue)
             .ToList();
         tickets.AddRange(directEnvestTickets.ToList());
-        tickets = tickets.DistinctBy(j => j.Key).OrderBy(j => j.Key).ToList();
+        tickets = tickets
+            .DistinctBy(j => j.Key).OrderBy(j => j.Key)
+            .Where(j => j.Key.StartsWith("JAVPM-"))
+            .ToList();
 
         // Add in Exalate tag for those synced.
         var mergedList = new List<JiraIssue>();
