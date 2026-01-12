@@ -1,4 +1,5 @@
-﻿namespace BensEngineeringMetrics.Tasks;
+﻿using BensEngineeringMetrics.Jira;
+namespace BensEngineeringMetrics.Tasks;
 
 public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IEngineeringMetricsTask
 {
@@ -57,7 +58,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     {
                         // new PmPlan header row
                         var header = new List<object?>
-                            { $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={child.PmPlan}""", child.PmPlanSummary };
+                            { JiraUtil.HyperlinkDiscoTicket(child.PmPlan), child.PmPlanSummary };
                         childrenArray.Add(header);
                         currentPmPlan = child.PmPlan;
                     }
@@ -65,7 +66,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     var row = new List<object?>
                     {
                         null,
-                        $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{child.Key}\", \"{child.Key}\")",
+                        JiraUtil.HyperlinkTicket(child.Key),
                         child.Summary,
                         null,
                         null,

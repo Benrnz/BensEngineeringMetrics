@@ -62,37 +62,38 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
             .Where(j => j.Key.StartsWith("JAVPM-"))
             .ToList();
 
-        // Add in Exalate tag for those synced.
+        // Add in Exalate tag for those synced and hyperlink key.
         var mergedList = new List<JiraIssue>();
         foreach (var issue in tickets)
         {
             var syncedIssue = allSyncedIssues.FirstOrDefault(i => i.Key == issue.Key);
+            var pmPlanHyperlink = string.IsNullOrWhiteSpace(issue.PmPlanKey) ? string.Empty : JiraUtil.HyperlinkDiscoTicket(issue.PmPlanKey);
             if (syncedIssue is null)
             {
-                mergedList.Add(issue);
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink});
             }
             else
             {
-                mergedList.Add(issue with { Exalate = syncedIssue.Exalate });
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), Exalate = syncedIssue.Exalate, PmPlanKey = pmPlanHyperlink });
             }
         }
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ShouldBeSyncedTickets");
         var filename = exporter.Export(mergedList);
-        await sheetUpdater.ImportFile($"'{ShouldBeSyncedTicketsSheetName}'!A1", filename);
+        await sheetUpdater.ImportFile($"'{ShouldBeSyncedTicketsSheetName}'!A1", filename, true);
     }
 
     private async Task<IReadOnlyList<JiraIssue>> ExportAllSyncedTickets()
     {
-        var ticketsSyncedJql = """ "Exalate[Short text]" ~ Envest""";
+        var ticketsSyncedJql = """ "Exalate[Short text]" IS NOT EMPTY""";
         Console.WriteLine(ticketsSyncedJql);
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(ticketsSyncedJql, Fields))
-            .Select(JiraIssue.CreateJiraIssue)
+            .Select(JiraIssue.CreateJiraIssueWithLinks)
             .OrderBy(j => j.Key)
             .ToList();
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-SyncedTickets");
         var filename = exporter.Export(issues);
-        await sheetUpdater.ImportFile($"'{AllSyncedTicketsSheetName}'!A1", filename);
+        await sheetUpdater.ImportFile($"'{AllSyncedTicketsSheetName}'!A1", filename, true);
         return issues;
     }
 
@@ -105,10 +106,18 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
-            var labels = (string)JiraFields.Labels.Parse(d);
-
             return new JiraIssue(
                 JiraFields.Key.Parse(d),
+                JiraFields.IssueType.Parse(d),
+                JiraFields.CustomersMultiSelect.Parse(d),
+                "",
+                JiraFields.Exalate.Parse(d));
+        }
+
+        public static JiraIssue CreateJiraIssueWithLinks(dynamic d)
+        {
+            return new JiraIssue(
+                JiraUtil.HyperlinkTicket(JiraFields.Key.Parse(d)),
                 JiraFields.IssueType.Parse(d),
                 JiraFields.CustomersMultiSelect.Parse(d),
                 "",
