@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace BensEngineeringMetrics.Jira;
@@ -28,17 +29,15 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
         var key = issue.GetProperty(JiraFields.Key.Field).GetString();
         var summary = string.Empty;
         var status = string.Empty;
+        var pmCustomer = string.Empty;
         bool? isReqdForGoLive = null;
         var issueKeyList = new List<IJiraKeyedIssue>();
         if (issue.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object)
         {
             summary = fields.GetProperty(JiraFields.Summary.Field).GetString();
             status = fields.GetProperty(JiraFields.Status.Field).GetProperty(JiraFields.Status.FlattenField).GetString();
-            isReqdForGoLive = null;
-            if (fields.TryGetProperty(JiraFields.IsReqdForGoLive.Field, out var cf) && cf.ValueKind != JsonValueKind.Null)
-            {
-                isReqdForGoLive = cf.GetDouble() > 0;
-            }
+            pmCustomer = ParsePmCustomer(fields);
+            isReqdForGoLive = ParseIsReqdForGoLive(fields);
 
             if (fields.TryGetProperty(JiraFields.InitiativeChildren.Field, out var issueLinks) && issueLinks.ValueKind == JsonValueKind.Array)
             {
@@ -104,7 +103,8 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             summary ?? string.Empty,
             status ?? string.Empty,
             isReqdForGoLive ?? false,
-            issueLinkKeys);
+            issueLinkKeys,
+            pmCustomer);
     }
 
     public BasicJiraTicketWithParent CreateBasicTicketFromJsonElement(JsonElement issue)
@@ -133,5 +133,43 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
             status ?? Constants.Unknown,
             issueType ?? Constants.Unknown,
             parentKey ?? string.Empty);
+    }
+
+    private bool ParseIsReqdForGoLive(JsonElement fields)
+    {
+        if (fields.TryGetProperty(JiraFields.IsReqdForGoLive.Field, out var cf) && cf.ValueKind != JsonValueKind.Null)
+        {
+            return cf.GetDouble() > 0;
+        }
+
+        return false;
+    }
+
+    private string ParsePmCustomer(JsonElement fields)
+    {
+        if (fields.TryGetProperty(JiraFields.PmPlanCustomer.Field, out var customerArray))
+        {
+            switch (customerArray.ValueKind)
+            {
+                case JsonValueKind.Null:
+                    break;
+                case JsonValueKind.Array:
+                {
+                    var customers = new StringBuilder();
+                    foreach (var customer in customerArray.EnumerateArray())
+                    {
+                        customers.Append(customer.GetProperty(JiraFields.PmPlanCustomer.FlattenField).GetString());
+                        customers.Append(", ");
+                    }
+
+                    customers.Remove(customers.Length - 2, 2);
+                    return customers.ToString();
+                }
+                default:
+                    throw new NotSupportedException($"Unexpected customer element type in JSON. Expected an Array but got: {customerArray.ValueKind}");
+            }
+        }
+
+        return string.Empty;
     }
 }

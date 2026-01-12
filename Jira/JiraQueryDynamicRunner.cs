@@ -75,7 +75,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
             optionalAdditionalJql = "AND " + optionalAdditionalJql;
         }
 
-        var queryFields = fields ?? [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
+        var queryFields = fields ?? [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.PmPlanCustomer, JiraFields.InitiativeChildren];
 
         var jql = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) {optionalAdditionalJql} ORDER BY key""";
 
@@ -85,7 +85,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper) : I
             {
                 var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(jsonElement, "inwardIssue", type => type != Constants.ProductInitiativeType);
                 // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
-                pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans));
+                pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customer));
             },
             jql,
             queryFields);

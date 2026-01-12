@@ -14,7 +14,7 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.IssueType,
         JiraFields.Summary,
         JiraFields.Exalate,
-        JiraFields.CustomersMultiSelect,
+        JiraFields.CustomersMultiSelect
     ];
 
     public string Description => "A report to show tickets that are Sync'ed with Envest via Exalate, and those that likely should be.";
@@ -38,20 +38,35 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         await sheetUpdater.SubmitBatch();
     }
 
+    private async Task<IReadOnlyList<JiraIssue>> ExportAllSyncedTickets()
+    {
+        var ticketsSyncedJql = """ "Exalate[Short text]" IS NOT EMPTY""";
+        Console.WriteLine(ticketsSyncedJql);
+        var issues = (await runner.SearchJiraIssuesWithJqlAsync(ticketsSyncedJql, Fields))
+            .Select(JiraIssue.CreateJiraIssueWithLinks)
+            .OrderBy(j => j.Key)
+            .ToList();
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-SyncedTickets");
+        var filename = exporter.Export(issues);
+        await sheetUpdater.ImportFile($"'{AllSyncedTicketsSheetName}'!A1", filename, true);
+        return issues;
+    }
+
     private async Task ExportShouldBeSyncedTickets(IReadOnlyList<JiraIssue> allSyncedIssues)
     {
         // Get all tickets that are linked to Initiatives and PM Plans
         var (_, allPmPlans) = await jiraRepo.OpenPmPlans();
-        var jqlEnvestPmPlans = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) AND "PM Customer[Checkboxes]" = Envest ORDER BY key""";
-        Console.WriteLine(jqlEnvestPmPlans);
-        var envestPmPlansKeys = (await runner.SearchJiraIssuesWithJqlAsync(jqlEnvestPmPlans, [JiraFields.PmPlanCustomer])).Select<dynamic, string>(d => JiraFields.Key.Parse(d));
-        var envestPmPlans = allPmPlans.Where(p => envestPmPlansKeys.Contains(p.Key));
+        //var jqlEnvestPmPlans = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) AND "PM Customer[Checkboxes]" = Envest ORDER BY key""";
+        //Console.WriteLine(jqlEnvestPmPlans);
+        //var envestPmPlansKeys = (await runner.SearchJiraIssuesWithJqlAsync(jqlEnvestPmPlans, [JiraFields.PmPlanCustomer])).Select<dynamic, string>(d => JiraFields.Key.Parse(d));
+        var envestPmPlans = allPmPlans.Where(p => p.Customer.Contains(Constants.Envest));
         var tickets = envestPmPlans
             .SelectMany(p => p.ChildTickets.Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key)))
             .ToList();
 
         // Get any ticket that is directly marked as Envest as the Customer
-        var jqlDirectEnvestTickets = $"type IN ('{Constants.BugType}', '{Constants.StoryType}', '{Constants.ImprovementType}', '{Constants.SchemaTaskType}') AND \"Customer/s (Multi Select)[Select List (multiple choices)]\" = Envest AND status != Done ORDER BY key";
+        var jqlDirectEnvestTickets =
+            $"type IN ('{Constants.BugType}', '{Constants.StoryType}', '{Constants.ImprovementType}', '{Constants.SchemaTaskType}') AND \"Customer/s (Multi Select)[Select List (multiple choices)]\" = Envest AND status != Done ORDER BY key";
         Console.WriteLine(jqlDirectEnvestTickets);
         var directEnvestTickets = (await runner.SearchJiraIssuesWithJqlAsync(jqlDirectEnvestTickets, Fields))
             .Select(JiraIssue.CreateJiraIssue)
@@ -70,7 +85,7 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
             var pmPlanHyperlink = string.IsNullOrWhiteSpace(issue.PmPlanKey) ? string.Empty : JiraUtil.HyperlinkDiscoTicket(issue.PmPlanKey);
             if (syncedIssue is null)
             {
-                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink});
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink });
             }
             else
             {
@@ -81,20 +96,6 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ShouldBeSyncedTickets");
         var filename = exporter.Export(mergedList);
         await sheetUpdater.ImportFile($"'{ShouldBeSyncedTicketsSheetName}'!A1", filename, true);
-    }
-
-    private async Task<IReadOnlyList<JiraIssue>> ExportAllSyncedTickets()
-    {
-        var ticketsSyncedJql = """ "Exalate[Short text]" IS NOT EMPTY""";
-        Console.WriteLine(ticketsSyncedJql);
-        var issues = (await runner.SearchJiraIssuesWithJqlAsync(ticketsSyncedJql, Fields))
-            .Select(JiraIssue.CreateJiraIssueWithLinks)
-            .OrderBy(j => j.Key)
-            .ToList();
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-SyncedTickets");
-        var filename = exporter.Export(issues);
-        await sheetUpdater.ImportFile($"'{AllSyncedTicketsSheetName}'!A1", filename, true);
-        return issues;
     }
 
     private record JiraIssue(
