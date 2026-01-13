@@ -14,7 +14,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         JiraFields.IssueType,
         JiraFields.Summary,
         JiraFields.Exalate,
-        JiraFields.CustomersMultiSelect
+        JiraFields.CustomersMultiSelect,
+        JiraFields.Team
     ];
 
     public string Description => "A report to show tickets that are Sync'ed with Envest via Exalate, and those that likely should be.";
@@ -56,9 +57,6 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
     {
         // Get all tickets that are linked to Initiatives and PM Plans
         var (_, allPmPlans) = await jiraRepo.OpenPmPlans();
-        //var jqlEnvestPmPlans = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) AND "PM Customer[Checkboxes]" = Envest ORDER BY key""";
-        //Console.WriteLine(jqlEnvestPmPlans);
-        //var envestPmPlansKeys = (await runner.SearchJiraIssuesWithJqlAsync(jqlEnvestPmPlans, [JiraFields.PmPlanCustomer])).Select<dynamic, string>(d => JiraFields.Key.Parse(d));
         var envestPmPlans = allPmPlans.Where(p => p.Customer.Contains(Constants.Envest));
         var tickets = envestPmPlans
             .SelectMany(p => p.ChildTickets.Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key)))
@@ -85,11 +83,11 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
             var pmPlanHyperlink = string.IsNullOrWhiteSpace(issue.PmPlanKey) ? string.Empty : JiraUtil.HyperlinkDiscoTicket(issue.PmPlanKey);
             if (syncedIssue is null)
             {
-                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink });
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink, Team = issue.Team });
             }
             else
             {
-                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), Exalate = syncedIssue.Exalate, PmPlanKey = pmPlanHyperlink });
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), Exalate = syncedIssue.Exalate, PmPlanKey = pmPlanHyperlink, Team = issue.Team });
             }
         }
 
@@ -103,7 +101,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         string IssueType,
         string Customer,
         string PmPlanKey = "",
-        string Exalate = "") : IJiraKeyedIssue
+        string Exalate = "",
+        string Team = "") : IJiraKeyedIssue
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
@@ -112,7 +111,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.IssueType.Parse(d),
                 JiraFields.CustomersMultiSelect.Parse(d),
                 "",
-                JiraFields.Exalate.Parse(d));
+                JiraFields.Exalate.Parse(d),
+                JiraFields.Team.Parse(d));
         }
 
         public static JiraIssue CreateJiraIssueWithLinks(dynamic d)
@@ -122,7 +122,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.IssueType.Parse(d),
                 JiraFields.CustomersMultiSelect.Parse(d),
                 "",
-                JiraFields.Exalate.Parse(d));
+                JiraFields.Exalate.Parse(d),
+                JiraFields.Team.Parse(d));
         }
     }
 }
