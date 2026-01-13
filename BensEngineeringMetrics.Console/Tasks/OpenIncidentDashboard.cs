@@ -119,7 +119,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         foreach (var issue in jiraIssues.Where(i => !i.Customers.Contains(Constants.Javln) && i.Severity == severity).OrderByDescending(i => i.LastActivity))
         {
             this.sheetData.Add([
-                $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{issue.Key}\", \"{issue.Key}\")",
+                JiraUtil.HyperlinkTicket(issue.Key),
                 issue.Status,
                 issue.Customers,
                 issue.Summary,

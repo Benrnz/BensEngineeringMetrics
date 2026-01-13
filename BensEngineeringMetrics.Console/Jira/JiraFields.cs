@@ -14,6 +14,7 @@ public static class JiraFields
     public static readonly FieldMapping<string> CustomersMultiSelect = new() { Field = "customfield_11812", Alias = "CustomersMultiSelect", FlattenField = "value" };
     public static readonly FieldMapping<string> DevTimeSpent = new FieldMappingWithParser<string> { Field = "customfield_11934", Alias = "DevTimeSpent", Parser = ParseDevTimeSpent };
     public static readonly FieldMapping<string> EstimationStatus = new() { Field = "customfield_12137", Alias = "EstimationStatus", FlattenField = "value" };
+    public static readonly FieldMapping<string> Exalate = new() { Field = "customfield_12467", Alias = "Exalate" };
     public static readonly FieldMapping<int> FlagCount = new FieldMappingWithParser<int> { Field = "customfield_12236", Alias = "FlagCount", Parser = ParseFlagCount };
 
     public static readonly FieldMapping<string> InitiativeChildren = new FieldMappingWithParser<string>

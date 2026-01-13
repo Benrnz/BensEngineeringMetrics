@@ -26,7 +26,7 @@ public interface IJiraQueryRunner
     ///     Defaults to 0, meaning only open initiatives will be fetched and included. Otherwise specify the number of months to go back and search
     ///     for recently closed initiatives.
     /// </param>
-    Task<IEnumerable<BasicJiraPmPlan>> GetIdeas(int monthsOfClosedIdeasToFetch = 0);
+    Task<IEnumerable<BasicJiraPmPlan>> GetOpenIdeas(string optionalAdditionalJql = "", IFieldMapping[]? fields = null, int monthsOfClosedIdeasToFetch = 0);
 
     /// <summary>
     ///     Retrieve all open Product Initiatives from Jira.  A Product Initiative is a top level object, that

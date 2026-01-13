@@ -80,20 +80,27 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IAp
         return issues;
     }
 
-    public async Task<IEnumerable<BasicJiraPmPlan>> GetIdeas(int monthsOfClosedIdeasToFetch = 0)
+    public async Task<IEnumerable<BasicJiraPmPlan>> GetIdeas(string optionalAdditionalJql = "", IFieldMapping[]? fields = null, int monthsOfClosedIdeasToFetch = 0)
     {
-        var jql = """project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) ORDER BY key""";
-        IFieldMapping[] fields = [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.InitiativeChildren];
-        var initiatives = new List<BasicJiraPmPlan>();
+        if (!string.IsNullOrEmpty(optionalAdditionalJql))
+        {
+            optionalAdditionalJql = "AND " + optionalAdditionalJql;
+        }
+
+        var queryFields = fields ?? [JiraFields.Summary, JiraFields.Status, JiraFields.IsReqdForGoLive, JiraFields.PmPlanCustomer, JiraFields.InitiativeChildren];
+
+        var jql = $"""project = "PMPLAN" AND type = idea AND status NOT IN ("Feature delivered", Cancelled) {optionalAdditionalJql} ORDER BY key""";
+
+        var pmPlanIdeas = new List<BasicJiraPmPlan>();
 
         await GetSomethingFromJira(eachLinkedIssue =>
             {
                 var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "inwardIssue", type => type != Constants.ProductInitiativeType);
                 // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
-                initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customers));
+                pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customer));
             },
             jql,
-            fields);
+            queryFields);
 
         if (monthsOfClosedIdeasToFetch > 0)
         {
@@ -103,13 +110,13 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IAp
                 {
                     var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "inwardIssue", type => type != Constants.ProductInitiativeType);
                     // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
-                    initiatives.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customers));
+                    pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customers));
                 },
                 jql,
-                fields);
+                queryFields);
         }
 
-        return initiatives;
+        return pmPlanIdeas;
     }
 
     public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)

@@ -13,6 +13,16 @@ public interface IJiraIssueRepository
     (string? initiativeKey, IJiraKeyedIssue? foundTicket) FindTicketByKey(string key);
 
     /// <summary>
+    /// Provides a dictionary keyed by leaf ticket key matched with its top level  INITIATIVE key.
+    /// </summary>
+    IReadOnlyDictionary<string, string> LeafTicketToInitiativeMap();
+
+    /// <summary>
+    /// Provides a dictionary keyed by lowest-level leaf ticket key matched with its parent PMPLAN key.
+    /// </summary>
+    IReadOnlyDictionary<string, string> LeafTicketToPmPlanMap();
+
+    /// <summary>
     ///     Retrieve all OPEN (not done, not cancelled) PMPLAN Initiatives from Jira. These are cached so repeated calls will return from cached data.
     /// </summary>
     /// <param name="monthsOfClosedInitiativesToFetch">
@@ -29,6 +39,4 @@ public interface IJiraIssueRepository
     ///     for recently closed PmPlans Ideas.
     /// </param>
     Task<(IReadOnlyList<BasicJiraInitiative> mappedInitiatives, IReadOnlyList<BasicJiraPmPlan> pmPlans)> GetPmPlans(int monthsOfClosedIdeasToFetch = 0);
-
-    IReadOnlyDictionary<string, string> LeafTicketToInitiativeMap();
 }
