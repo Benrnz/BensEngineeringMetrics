@@ -56,7 +56,7 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
     private async Task ExportShouldBeSyncedTickets(IReadOnlyList<JiraIssue> allSyncedIssues)
     {
         // Get all tickets that are linked to Initiatives and PM Plans
-        var (_, allPmPlans) = await jiraRepo.OpenPmPlans();
+        var (_, allPmPlans) = await jiraRepo.GetPmPlans();
         var envestPmPlans = allPmPlans.Where(p => p.Customer.Contains(Constants.Envest));
         var tickets = envestPmPlans
             .SelectMany(p => p.ChildTickets.Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key)))

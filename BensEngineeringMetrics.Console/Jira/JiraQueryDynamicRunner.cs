@@ -110,7 +110,7 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IAp
                 {
                     var temp = jsonMapper.CreateBasicInitiativeFromJsonElement(eachLinkedIssue, "inwardIssue", type => type != Constants.ProductInitiativeType);
                     // Change type from BasicJiraInitiative to BasicJiraPmPlan - reduce duplicate code, they are very similar types, but useful to have type distinction.
-                    pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customers));
+                    pmPlanIdeas.Add(new BasicJiraPmPlan(temp.Key, temp.Summary, temp.Status, Constants.IdeaType, temp.RequiredForGoLive, temp.ChildPmPlans, temp.Customer));
                 },
                 jql,
                 queryFields);

@@ -56,7 +56,7 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
             return (this.initiatives, this.pmPlans);
         }
 
-        this.pmPlans.AddRange(await runner.GetIdeas(monthsOfClosedIdeasToFetch));
+        this.pmPlans.AddRange(await runner.GetIdeas(monthsOfClosedIdeasToFetch: monthsOfClosedIdeasToFetch));
         Console.WriteLine($"Retrieved {this.pmPlans.Count} PmPlan Ideas.");
 
         await MapPmPlanIdeasToInitiatives();
