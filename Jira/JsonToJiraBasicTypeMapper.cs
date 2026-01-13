@@ -48,8 +48,10 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
                         continue;
                     }
 
+                    var childKey = string.Empty;
                     if (childIssue.TryGetProperty(JiraFields.Key.Field, out var outKey) && outKey.ValueKind == JsonValueKind.String)
                     {
+                        childKey = outKey.GetString()!;
                         if (!childIssue.TryGetProperty("fields", out var childIssueFields))
                         {
                             continue;
@@ -82,7 +84,7 @@ internal class JsonToJiraBasicTypeMapper : IJsonToJiraBasicTypeMapper
                         var childStatus = childIssueFields.GetProperty(JiraFields.Status.Field).GetProperty(JiraFields.Status.FlattenField).GetString();
                         var childSummary = childIssueFields.GetProperty(JiraFields.Summary.Field).GetString();
 
-                        issueKeyList.Add(new BasicJiraTicket(outKey.GetString()!, childSummary ?? string.Empty, childStatus ?? Constants.Unknown, linkIssueType));
+                        issueKeyList.Add(new BasicJiraTicket(childKey, childSummary ?? string.Empty, childStatus ?? Constants.Unknown, linkIssueType));
                         continue;
                     }
 

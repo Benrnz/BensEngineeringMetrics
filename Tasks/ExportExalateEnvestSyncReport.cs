@@ -62,7 +62,9 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         var (_, allPmPlans) = await jiraRepo.OpenPmPlans();
         var envestPmPlans = allPmPlans.Where(p => p.Customer.Contains(Constants.Envest));
         var tickets = envestPmPlans
-            .SelectMany(p => p.ChildTickets.Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key)))
+            .SelectMany(p => p.ChildTickets
+                .OfType<BasicJiraTicket>()
+                .Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key, string.Empty, string.Empty, leaf.Summary)))
             .ToList();
 
         // Get any ticket that is directly marked as Envest as the Customer
