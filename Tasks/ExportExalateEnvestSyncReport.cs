@@ -44,11 +44,14 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         var ticketsSyncedJql = """ "Exalate[Short text]" IS NOT EMPTY""";
         Console.WriteLine(ticketsSyncedJql);
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(ticketsSyncedJql, Fields))
-            .Select(JiraIssue.CreateJiraIssueWithLinks)
+            .Select(JiraIssue.CreateJiraIssue)
             .OrderBy(j => j.Key)
             .ToList();
+
+        var issuesWithLinks = issues.Select(i => i with { Key = JiraUtil.HyperlinkTicket(i.Key) }).ToList();
+
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-SyncedTickets");
-        var filename = exporter.Export(issues);
+        var filename = exporter.Export(issuesWithLinks);
         await sheetUpdater.ImportFile($"'{AllSyncedTicketsSheetName}'!A1", filename, true);
         return issues;
     }
