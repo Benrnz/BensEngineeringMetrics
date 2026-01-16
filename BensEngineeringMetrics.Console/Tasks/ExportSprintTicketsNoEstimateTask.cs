@@ -48,7 +48,7 @@ public class ExportSprintTicketsNoEstimateTask(IJiraQueryRunner runner, ICsvExpo
         {
             foreach (var i in issues.ToList())
             {
-                Console.WriteLine($"{i.key} {i.Team}");
+                Console.WriteLine($"{i.key} {i.IssueType} {i.Team} {i.Summary}");
             }
         }
 

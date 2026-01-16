@@ -62,7 +62,9 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         var (_, allPmPlans) = await jiraRepo.GetPmPlans();
         var envestPmPlans = allPmPlans.Where(p => p.Customer.Contains(Constants.Envest));
         var tickets = envestPmPlans
-            .SelectMany(p => p.ChildTickets.Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key)))
+            .SelectMany(p => p.ChildTickets
+                .OfType<BasicJiraTicket>()
+                .Select(leaf => new JiraIssue(leaf.Key, leaf.IssueType, "Envest", p.Key, string.Empty, string.Empty, leaf.Summary)))
             .ToList();
 
         // Get any ticket that is directly marked as Envest as the Customer
@@ -86,11 +88,11 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
             var pmPlanHyperlink = string.IsNullOrWhiteSpace(issue.PmPlanKey) ? string.Empty : JiraUtil.HyperlinkDiscoTicket(issue.PmPlanKey);
             if (syncedIssue is null)
             {
-                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink, Team = issue.Team });
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), PmPlanKey = pmPlanHyperlink });
             }
             else
             {
-                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), Exalate = syncedIssue.Exalate, PmPlanKey = pmPlanHyperlink, Team = issue.Team });
+                mergedList.Add(issue with { Key = JiraUtil.HyperlinkTicket(issue.Key), Exalate = syncedIssue.Exalate, PmPlanKey = pmPlanHyperlink, Team = syncedIssue.Team, Summary = syncedIssue.Summary });
             }
         }
 
@@ -105,7 +107,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         string Customer,
         string PmPlanKey = "",
         string Exalate = "",
-        string Team = "") : IJiraKeyedIssue
+        string Team = "",
+        string Summary = "") : IJiraKeyedIssue
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
@@ -115,18 +118,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
                 JiraFields.CustomersMultiSelect.Parse(d),
                 "",
                 JiraFields.Exalate.Parse(d),
-                JiraFields.Team.Parse(d));
-        }
-
-        public static JiraIssue CreateJiraIssueWithLinks(dynamic d)
-        {
-            return new JiraIssue(
-                JiraUtil.HyperlinkTicket(JiraFields.Key.Parse(d)),
-                JiraFields.IssueType.Parse(d),
-                JiraFields.CustomersMultiSelect.Parse(d),
-                "",
-                JiraFields.Exalate.Parse(d),
-                JiraFields.Team.Parse(d));
+                JiraFields.Team.Parse(d),
+                JiraFields.Summary.Parse(d));
         }
     }
 }
