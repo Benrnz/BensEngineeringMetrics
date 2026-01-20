@@ -9,7 +9,7 @@ internal interface IEnvestPmPlanStories
     Task<IReadOnlyList<EnvestPmPlanStories.JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null);
 }
 
-internal class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStories
+internal class EnvestPmPlanStories(IJiraQueryRunner runner, IOutputter outputter) : IEnvestPmPlanStories
 {
     private static readonly IFieldMapping[] Fields =
     [
@@ -47,16 +47,16 @@ internal class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStori
 
         additionalCriteria ??= string.Empty;
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        Console.WriteLine(jqlPmPlans);
+        outputter.WriteLine(jqlPmPlans);
         var childrenJql = $"project=JAVPM AND (issue in (linkedIssues(\"{{0}}\")) OR parent in (linkedIssues(\"{{0}}\"))) {additionalCriteria} ORDER BY key";
-        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
+        outputter.WriteLine($"ForEach PMPLAN: {childrenJql}");
         PmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(JiraPmPlan.Create);
 
         var allIssues = new Dictionary<string, JiraIssueWithPmPlan>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
         foreach (var pmPlan in PmPlans)
         {
             var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
-            Console.WriteLine($"Fetched {children.Count} children for {pmPlan.Key}");
+            outputter.WriteLine($"Fetched {children.Count} children for {pmPlan.Key}");
             foreach (var child in children)
             {
                 JiraIssueWithPmPlan issue = JiraIssueWithPmPlan.Create(child, pmPlan);
@@ -113,6 +113,5 @@ internal class EnvestPmPlanStories(IJiraQueryRunner runner) : IEnvestPmPlanStori
                 JiraFields.ParentKey.Parse(i));
             return typedIssue;
         }
-
     }
 }

@@ -29,6 +29,7 @@ public static class Program
             services.AddSingleton<IJsonToJiraBasicTypeMapper, JsonToJiraBasicTypeMapper>();
             services.AddSingleton<IEnvestPmPlanStories, EnvestPmPlanStories>();
             services.AddTransient<IApiClientFactory, JiraApiClientFactory>();
+            services.AddTransient<IOutputter, ConsoleOutputter>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())

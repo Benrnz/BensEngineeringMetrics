@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace BensEngineeringMetrics.Jira;
 
-public class JiraApiClient(bool enableRecording = false)
+public class JiraApiClient(IOutputter outputter, bool enableRecording = false)
 {
     private const string BaseApi3Url = "https://javlnsupport.atlassian.net/rest/api/3/";
     private const string BaseAgileUrl = "https://javlnsupport.atlassian.net/rest/agile/1.0/";
@@ -65,10 +65,10 @@ public class JiraApiClient(bool enableRecording = false)
         var response = await App.HttpJira.PostAsync($"{BaseApi3Url}search/jql", content);
         if (!response.IsSuccessStatusCode)
         {
-            Console.WriteLine("ERROR!");
-            Console.WriteLine(response.StatusCode);
-            Console.WriteLine(response.ReasonPhrase);
-            Console.WriteLine(json);
+            outputter.WriteLine("ERROR!");
+            outputter.WriteLine(response.StatusCode);
+            outputter.WriteLine(response.ReasonPhrase);
+            outputter.WriteLine(json);
         }
 
         response.EnsureSuccessStatusCode();

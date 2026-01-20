@@ -6,7 +6,7 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Test.TestHarnesses;
 
-public class JiraApiClientTestHarness(string testLogsName) : JiraApiClient
+public class JiraApiClientTestHarness(IOutputter outputter, string testLogsName) : JiraApiClient(outputter)
 {
     private List<LogEntry>? cachedLogEntries;
     private string? cachedLogsDirectory;
