@@ -75,6 +75,7 @@ jobs:
     - name: Generate dummy BensEngineeringMetrics.Console/Secrets.cs
       run: |
         mkdir -p src
+        mkdir -p src/BensEngineeringMetrics.Console
         echo 'namespace BensEngineeringMetrics {' > src/BensEngineeringMetrics.Console/Secrets.cs
         echo '  public static class Secrets {' >> src/BensEngineeringMetrics.Console/Secrets.cs
         echo '    public const string JiraToken = "FAKE_API_KEY";' >> src/BensEngineeringMetrics.Console/Secrets.cs
