@@ -2,8 +2,20 @@ namespace BensEngineeringMetrics.Jira;
 
 internal class JiraApiClientFactory : IApiClientFactory
 {
-    public JiraApiClient CreateJiraApiClient(bool recordMode = false)
+    private readonly bool record;
+
+    public JiraApiClientFactory()
     {
-        return new JiraApiClient(recordMode);
+        this.record = false;
+    }
+
+    public JiraApiClientFactory(bool record)
+    {
+        this.record = record;
+    }
+
+    public JiraApiClient CreateJiraApiClient()
+    {
+        return new JiraApiClient(this.record);
     }
 }

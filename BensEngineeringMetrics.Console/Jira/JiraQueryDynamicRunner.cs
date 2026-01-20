@@ -147,7 +147,14 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IAp
             using var doc = JsonDocument.Parse(responseJson);
             var issues = doc.RootElement.GetProperty("issues");
             isLastPage = doc.RootElement.TryGetProperty("isLast", out var isLastPageToken) && isLastPageToken.GetBoolean();
-            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
+            if (isLastPage)
+            {
+                nextPageToken = null;
+            }
+            else
+            {
+                nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
+            }
 
             foreach (var issue in issues.EnumerateArray())
             {

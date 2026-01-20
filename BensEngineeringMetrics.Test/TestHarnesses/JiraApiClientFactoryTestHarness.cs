@@ -2,11 +2,11 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Test.TestHarnesses;
 
-public class JiraApiClientFactoryTestHarness : IApiClientFactory
+public class JiraApiClientFactoryTestHarness(string testLogName) : IApiClientFactory
 {
-    private readonly JiraApiClientTestHarness scopedSingletonClient = new JiraApiClientTestHarness();
+    private readonly JiraApiClientTestHarness scopedSingletonClient = new(testLogName);
 
-    public JiraApiClient CreateJiraApiClient(bool recordMode = false)
+    public JiraApiClient CreateJiraApiClient()
     {
         return this.scopedSingletonClient;
     }

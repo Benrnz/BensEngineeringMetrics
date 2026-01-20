@@ -83,47 +83,23 @@ public class JiraApiClient(bool enableRecording = false)
         return responseJson;
     }
 
-    private async Task RecordCallAsync(string jql, string responseJson)
+    private static string ExtractNextPageToken(string responseJson)
     {
-        // Initialize log file path on first call
-        if (this.logFilePath is null)
+        try
         {
-            var logsDirectory = Path.Combine(App.DefaultFolder, "Logs");
-            Directory.CreateDirectory(logsDirectory);
-
-            // Sanitize JQL for filename (first 30 characters)
-            var jqlPrefix = jql.Length > 30 ? jql.Substring(0, 30) : jql;
-            var sanitizedJql = SanitizeFileName(jqlPrefix);
-            var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-ffff");
-            var fileName = $"{timestamp}_{sanitizedJql}.json";
-            this.logFilePath = Path.Combine(logsDirectory, fileName);
+            using var document = JsonDocument.Parse(responseJson);
+            var root = document.RootElement;
+            if (root.TryGetProperty("nextPageToken", out var tokenElement))
+            {
+                return tokenElement.GetString() ?? "";
+            }
+        }
+        catch
+        {
+            // If parsing fails, return empty string
         }
 
-        // Create log entry
-        var logEntry = new
-        {
-            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-            jql,
-            response = responseJson
-        };
-
-        var logJson = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
-
-        // Append to file
-        await File.AppendAllTextAsync(this.logFilePath, logJson + Environment.NewLine + Environment.NewLine);
-    }
-
-    private static string SanitizeFileName(string fileName)
-    {
-        // Remove invalid filename characters
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
-
-        // Replace spaces and other problematic characters
-        sanitized = Regex.Replace(sanitized, @"\s+", "_");
-        sanitized = Regex.Replace(sanitized, @"[^\w\-_]", "_");
-
-        return sanitized;
+        return "";
     }
 
     // New private helper: get sprints for a specific state with paging
@@ -153,5 +129,52 @@ public class JiraApiClient(bool enableRecording = false)
         var response = await App.HttpJira.GetAsync(sb.ToString());
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
+    }
+
+    private async Task RecordCallAsync(string jql, string responseJson)
+    {
+        // Initialize log file path on first call
+        if (this.logFilePath is null)
+        {
+            var logsDirectory = Path.Combine(App.DefaultFolder, "Logs");
+            Directory.CreateDirectory(logsDirectory);
+
+            // Sanitize JQL for filename (first 30 characters)
+            var jqlPrefix = jql.Length > 30 ? jql.Substring(0, 30) : jql;
+            var sanitizedJql = SanitizeFileName(jqlPrefix);
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-ffff");
+            var fileName = $"{timestamp}_{sanitizedJql}.json";
+            this.logFilePath = Path.Combine(logsDirectory, fileName);
+        }
+
+        // Extract nextPageToken from the response JSON
+        var nextPageToken = ExtractNextPageToken(responseJson);
+
+        // Create log entry
+        var logEntry = new
+        {
+            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            jql,
+            response = responseJson,
+            nextPageToken
+        };
+
+        var logJson = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
+
+        // Append to file
+        await File.AppendAllTextAsync(this.logFilePath, logJson + Environment.NewLine + Environment.NewLine);
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        // Remove invalid filename characters
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+
+        // Replace spaces and other problematic characters
+        sanitized = Regex.Replace(sanitized, @"\s+", "_");
+        sanitized = Regex.Replace(sanitized, @"[^\w\-_]", "_");
+
+        return sanitized;
     }
 }
