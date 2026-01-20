@@ -34,13 +34,13 @@ public class JiraApiClientTestHarness(string testLogsName) : JiraApiClient
 
         if (matchingEntry is not null)
         {
-            Console.WriteLine("    Success");
-            this.lastTimestamp = matchingEntry.Timestamp;
             if (matchingEntry.Jql != jql)
             {
                 throw new InvalidOperationException($"JQL '{jql}' does not match next recorded entry {matchingEntry.Jql}.");
             }
 
+            this.lastTimestamp = matchingEntry.Timestamp;
+            Console.WriteLine("    Success");
             return matchingEntry.Response;
         }
 
@@ -124,7 +124,7 @@ public class JiraApiClientTestHarness(string testLogsName) : JiraApiClient
 
     private class DateTimeConverter : JsonConverter<DateTime>
     {
-        private const string DateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+        private const string DateTimeFormat = "yyyy-MM-dd HH:mm:ss:fff";
 
         public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {

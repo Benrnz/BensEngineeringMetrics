@@ -153,7 +153,7 @@ public class JiraApiClient(bool enableRecording = false)
         // Create log entry
         var logEntry = new
         {
-            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss:fff"),
             jql,
             response = responseJson,
             nextPageToken
