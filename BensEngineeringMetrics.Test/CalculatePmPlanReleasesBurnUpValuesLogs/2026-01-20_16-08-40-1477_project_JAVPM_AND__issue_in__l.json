@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-01-20 16:08:40:147",
+  "jql": "project=JAVPM AND (issue in (linkedIssues(\u0022PMPLAN-233\u0022)) OR parent in (linkedIssues(\u0022PMPLAN-233\u0022)))  ORDER BY key",
+  "response": "{\u0022issues\u0022:[],\u0022isLast\u0022:true}",
+  "nextPageToken": ""
+}
+
