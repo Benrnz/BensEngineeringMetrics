@@ -72,16 +72,16 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore $Solution_Name
 
-    - name: Generate dummy Secrets.cs
+    - name: Generate dummy BensEngineeringMetrics.Console/Secrets.cs
       run: |
         mkdir -p src
-        echo 'namespace BensEngineeringMetrics {' > src/Secrets.cs
-        echo '  public static class Secrets {' >> src/Secrets.cs
-        echo '    public const string JiraToken = "FAKE_API_KEY";' >> src/Secrets.cs
-        echo '    public const string Username = "fake@fake.endpoint.com";' >> src/Secrets.cs
-        echo '    public const string SlackToken = "FAKE_API_KEY";' >> src/Secrets.cs
-        echo '  }' >> src/Secrets.cs
-        echo '}' >> src/Secrets.cs
+        echo 'namespace BensEngineeringMetrics {' > src/BensEngineeringMetrics.Console/Secrets.cs
+        echo '  public static class Secrets {' >> src/BensEngineeringMetrics.Console/Secrets.cs
+        echo '    public const string JiraToken = "FAKE_API_KEY";' >> src/BensEngineeringMetrics.Console/Secrets.cs
+        echo '    public const string Username = "fake@fake.endpoint.com";' >> src/BensEngineeringMetrics.Console/Secrets.cs
+        echo '    public const string SlackToken = "FAKE_API_KEY";' >> src/BensEngineeringMetrics.Console/Secrets.cs
+        echo '  }' >> src/BensEngineeringMetrics.Console/Secrets.cs
+        echo '}' >> src/BensEngineeringMetrics.Console/Secrets.cs
 
     - name: Build project
       run: dotnet build $Solution_Name --configuration Debug
