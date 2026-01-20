@@ -6,10 +6,12 @@ using NSubstitute;
 
 namespace BensEngineeringMetrics.Test;
 
+// IS THIS THE RIGHT APPROACH??  WHY NOT GET THE DESIRED OUTPUT FOR A TASK AND VALIDATE THE NEW APPROACH PRODUCES THE SAME OUTPUT?
+// This might be useful for isolated refactoring once data is pulled from Jira.  But anything that changes the order or data pulled from Jira this won't work well.
 public class CalculatePmPlanReleaseBurnUpValuesTest
 {
-    //[Fact(Skip = "Only run manually")]
-    [Fact]
+    [Fact(Skip = "Only run manually")]
+    //[Fact]
     public async Task Recorder()
     {
         // This test is intended to put the JiraApiClient into recording mode to capture live data for later playback during a test.
