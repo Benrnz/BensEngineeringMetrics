@@ -30,6 +30,7 @@ public static class Constants
     public const string TableDefinitionType = "Table Definition";
     public const string TeamIntegration = "e062eb45-082f-4cd8-9631-7265d5a12fd8";
     public const string TeamOfficetech = "Empty";
+    public const string TeamPhantom = "4969f8fb-fe96-47f7-80f9-f7bc9f7dd70a";
     public const string TeamRubyDucks = "60412efa-7e2e-4285-bb4e-f329c3b6d417";
     public const string TeamSpearhead = "f08f7fdc-cfab-4de7-8fdd-8da57b10adb6";
     public const string TeamSuperclass = "1a05d236-1562-4e58-ae88-1ffc6c5edb32";

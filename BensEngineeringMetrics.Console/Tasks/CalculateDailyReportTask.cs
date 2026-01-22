@@ -41,6 +41,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSuperclass} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Superclass", sprintStart);
 
+        // Phantom team
+        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamPhantom} AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, "Phantom", sprintStart);
+
         // Ruby Ducks team
         jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamRubyDucks} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Ruby Ducks", sprintStart);
