@@ -1,16 +1,16 @@
 cls
 @ECHO OFF
 ECHO Start time: %date% %time%
-cd \Development\BensEngineeringMetrics
 git checkout master
 git pull
 dotnet build BensEngineeringMetrics.sln
-cd \Development\BensEngineeringMetrics\Bin\Debug\net9.0
-BensEngineeringMetricsConsole.exe BUG_STATS
-BensEngineeringMetricsConsole.exe INCIDENTS
-BensEngineeringMetricsConsole.exe INIT_ALL
-BensEngineeringMetricsConsole.exe SPRINT_PLAN
-BensEngineeringMetricsConsole.exe ENG_TASK_ANALYSIS
+cd BensEngineeringMetrics.Console\Bin\Debug\net9.0
+BensEngineeringMetrics.Console.exe BUG_STATS
+BensEngineeringMetrics.Console.exe INCIDENTS
+BensEngineeringMetrics.Console.exe INIT_ALL
+BensEngineeringMetrics.Console.exe SPRINT_PLAN
+BensEngineeringMetrics.Console.exe ENG_TASK_ANALYSIS
+BensEngineeringMetrics.Console.exe ENVEST_EXALATE
 
 ECHO Finish time: %date% %time%
 
