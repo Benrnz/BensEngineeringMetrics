@@ -91,8 +91,8 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 initiative.Description,
                 //https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue=PMPLAN-204&issueViewSection=deliver
                 JiraUtil.HyperlinkDiscoTicket(initiative.InitiativeKey),
-                pmPlansExclUat.Sum(p => p.Progress.Done),
-                pmPlansExclUat.Sum(p => p.Progress.Remaining)
+                pmPlansExclUat.Sum(p => p.Progress.DoneStoryPoints),
+                pmPlansExclUat.Sum(p => p.Progress.RemainingStoryPoints)
             };
             reportArray.Add(row);
         }
@@ -109,9 +109,10 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             {
                 initiative.Description,
                 JiraUtil.HyperlinkDiscoTicket(initiative.InitiativeKey),
-                initiative.Progress.Total,
-                initiative.Progress.Done,
-                initiative.Progress.Remaining,
+                initiative.Progress.TotalStoryPoints,
+                initiative.Progress.DoneStoryPoints,
+                initiative.Progress.RemainingStoryPoints,
+                initiative.Progress.RemainingTicketCount,
                 initiative.Progress.PercentDone,
                 initiative.Status,
                 initiative.Target?.ToString("d MMM yy")
@@ -123,9 +124,10 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 {
                     childPmPlan.Description,
                     JiraUtil.HyperlinkDiscoTicket(childPmPlan.PmPlanKey),
-                    childPmPlan.Progress.Total,
-                    childPmPlan.Progress.Done,
-                    childPmPlan.Progress.Remaining,
+                    childPmPlan.Progress.TotalStoryPoints,
+                    childPmPlan.Progress.DoneStoryPoints,
+                    childPmPlan.Progress.RemainingStoryPoints,
+                    childPmPlan.Progress.RemainingTicketCount,
                     childPmPlan.Progress.PercentDone,
                     childPmPlan.Status,
                     childPmPlan.Target?.ToString("d MMM yy")
@@ -182,15 +184,17 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(javPmKeyql, pmPlanKey), IssueFields);
                 Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
                 var range = children.Select<dynamic, JiraIssue>(i => CreateJiraIssue(pmPlanKey, summary, i)).ToList();
-                pmPlanData.Progress.Total = range.Sum(i => i.StoryPoints);
-                pmPlanData.Progress.Done = range.Where(i => i.Status == Constants.DoneStatus).Sum(i => i.StoryPoints);
+                pmPlanData.Progress.TotalStoryPoints = range.Sum(i => i.StoryPoints);
+                pmPlanData.Progress.RemainingTicketCount = range.Count(i => i.Status != Constants.DoneStatus);
+                pmPlanData.Progress.DoneStoryPoints = range.Where(i => i.Status == Constants.DoneStatus).Sum(i => i.StoryPoints);
                 allIssues.AddRange(range);
                 jiraInitiative.PmPlans.Add(pmPlanData);
             }
 
             Console.WriteLine($"Found {allIssues.Count} unique stories");
-            jiraInitiative.Progress.Total = jiraInitiative.PmPlans.Sum(p => p.Progress.Total);
-            jiraInitiative.Progress.Done = jiraInitiative.PmPlans.Sum(p => p.Progress.Done);
+            jiraInitiative.Progress.TotalStoryPoints = jiraInitiative.PmPlans.Sum(p => p.Progress.TotalStoryPoints);
+            jiraInitiative.Progress.DoneStoryPoints = jiraInitiative.PmPlans.Sum(p => p.Progress.DoneStoryPoints);
+            jiraInitiative.Progress.RemainingTicketCount = jiraInitiative.PmPlans.Sum(p => p.Progress.RemainingTicketCount);
             AllIssuesData.Add(initiative, allIssues);
             allInitiativeData.Add(jiraInitiative);
         } // For each initiative
@@ -227,11 +231,25 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public record StatLine
     {
-        public double Done { get; set; }
+        public double RemainingTicketCount { get; set; }
 
-        public double PercentDone => Done / (Total == 0 ? 1 : Total);
-        public double Remaining => Total - Done;
-        public double Total { get; set; }
+        public double DoneStoryPoints { get; set; }
+
+        public double PercentDone
+        {
+            get
+            {
+                if (RemainingStoryPoints == 0 && RemainingTicketCount > 0)
+                {
+                    return 0.99;
+                }
+
+                return DoneStoryPoints / (TotalStoryPoints == 0 ? 1 : TotalStoryPoints);
+            }
+        }
+
+        public double RemainingStoryPoints => TotalStoryPoints - DoneStoryPoints;
+        public double TotalStoryPoints { get; set; }
     }
 
     public record JiraIssue(
