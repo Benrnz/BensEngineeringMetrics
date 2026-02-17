@@ -165,6 +165,21 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IAp
         return results;
     }
 
+    public async Task<IReadOnlyList<dynamic>> GetExtraDataBasedOnIssueKeys(string[] issueKeys, IFieldMapping[] fields)
+    {
+        const int batchSize = 1000;
+        var idArray = issueKeys.Distinct().ToArray();
+        var allExtraData = new List<dynamic>();
+        for (var batchIndex = 0; batchIndex < idArray.Length; batchIndex += batchSize)
+        {
+            var thisBatch = string.Join(',', idArray.Skip(batchIndex).Take(batchSize).ToArray());
+            var jql = $"key IN ({thisBatch})";
+            allExtraData.AddRange(await SearchJiraIssuesWithJqlAsync(jql, fields));
+        }
+
+        return allExtraData;
+    }
+
     public async Task<AgileSprint?> GetSprintById(int sprintId)
     {
         var result = await clientFactory.CreateJiraApiClient().GetAgileBoardSprintByIdAsync(sprintId);

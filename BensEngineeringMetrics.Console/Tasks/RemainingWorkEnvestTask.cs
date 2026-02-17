@@ -1,11 +1,9 @@
-using System.Text;
 using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
 /// <summary>
-///     This task retrieves all Jira Issues related to top-level Jira Initiatives for the customer Envest
-///     that are marked as "Required For Go-live" but are not yet Done.
+///     This task retrieves all Jira Issues related to top-level Jira Initiatives for the customer Envest that are marked as "Required For Go-live" but are not yet Done.
 /// </summary>
 public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, IOutputter outputter, IWorkSheetUpdater sheetUpdater, IJiraQueryRunner runner) : IEngineeringMetricsTask
 {
@@ -14,9 +12,9 @@ public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, I
     private const string SheetTabName = "Remaining Work";
 
     private static readonly IFieldMapping[] Fields = [JiraFields.StoryPoints, JiraFields.Priority, JiraFields.Exalate];
+    private IList<ExtraData> extraData = new List<ExtraData>();
 
     private IList<EnvestNotDoneIssue> notDoneIssues = new List<EnvestNotDoneIssue>();
-    private IList<ExtraData> extraData = new List<ExtraData>();
 
     public string Description => $"Find all {Constants.Envest} Jira Issues Required For Go-live that are not Done";
 
@@ -39,7 +37,7 @@ public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, I
 
         await jiraIssueRepository.GetInitiatives();
         // Get all initiatives and PM plans
-        var (initiatives, pmPlans) = await jiraIssueRepository.GetPmPlans(0);
+        var (initiatives, pmPlans) = await jiraIssueRepository.GetPmPlans();
 
         // Filter for Envest PM Plans that are Required for Go-live
         var envestPmPlans = pmPlans
@@ -48,7 +46,7 @@ public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, I
 
         outputter.WriteLine($"Found {envestPmPlans.Count} {Constants.Envest} PM Plans marked as Required For Go-live");
 
-        var notDoneIssues = new List<EnvestNotDoneIssue>();
+        this.notDoneIssues = new List<EnvestNotDoneIssue>();
 
         // For each PM plan, process its child tickets
         foreach (var pmPlan in envestPmPlans)
@@ -73,37 +71,21 @@ public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, I
                     // Only include tickets that are not Done
                     if (basicTicket.Status != Constants.DoneStatus)
                     {
-                        notDoneIssues.Add(new EnvestNotDoneIssue(
+                        this.notDoneIssues.Add(new EnvestNotDoneIssue(
                             parentInitiative.Key,
                             parentInitiative.Summary,
                             basicTicket.Key,
                             basicTicket.Summary,
-                            basicTicket.Status,
-                            basicTicket.IssueType
-                            ));
+                            basicTicket.Status
+                        ));
                     }
                 }
             }
         }
 
-        await LoadExtraFields(notDoneIssues);
-        this.notDoneIssues = notDoneIssues;
-        outputter.WriteLine($"Complete. Found {notDoneIssues.Count} issues not Done.");
-    }
-
-    private async Task LoadExtraFields(IList<EnvestNotDoneIssue> issues)
-    {
-        const int batchSize = 1000;
-        var idArray = issues.Select(i => i.IssueKey).Distinct().ToArray();
-        var allExtraData = new List<ExtraData>();
-        for(var batchIndex = 0; batchIndex < issues.Count; batchIndex += batchSize)
-        {
-            var thisBatch = string.Join(',', idArray.Skip(batchIndex).Take(batchSize).ToArray());
-            var jql = $"key IN ({thisBatch})";
-            allExtraData.AddRange((await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(ExtraData.Create));
-        }
-
-        this.extraData = allExtraData;
+        this.extraData = (await runner.GetExtraDataBasedOnIssueKeys(this.notDoneIssues.Select(i => i.IssueKey).ToArray(), Fields))
+            .Select(ExtraData.Create).ToList();
+        outputter.WriteLine($"Complete. Found {this.notDoneIssues.Count} issues not Done.");
     }
 
     private async Task UpdateSheet()
@@ -146,8 +128,7 @@ public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, I
         string InitiativeSummary,
         string IssueKey,
         string Summary,
-        string Status,
-        string IssueType);
+        string Status);
 
     public record ExtraData(string Key, double StoryPoints, string Priority, string Exalate)
     {

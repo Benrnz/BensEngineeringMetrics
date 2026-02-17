@@ -19,6 +19,14 @@ public interface IJiraQueryRunner
     Task<IEnumerable<BasicJiraTicketWithParent>> GetEpicChildren(string[] epicKeys);
 
     /// <summary>
+    ///     Retrieve more fields from Jira based on provided ticket keys. This is useful when using the <see cref="IJiraIssueRepository" /> and more fields are required than what is given
+    ///     by the repository.
+    /// </summary>
+    /// <param name="issueKeys">A string array of keys, this does not have to be a unique list (duplicates are fine).  The method will remove duplicates before querying Jira.</param>
+    /// <param name="fields">The extra fields to retrieve.  Key does not need to be added, it is included by default.</param>
+    Task<IReadOnlyList<dynamic>> GetExtraDataBasedOnIssueKeys(string[] issueKeys, IFieldMapping[] fields);
+
+    /// <summary>
     ///     Retrieve all open Product Ideas from Jira.  A Product Idea is a grouping parent object that is a direct child of a Product Initiative.
     ///     A PmPlan Idea can have many Jira tickets as children that can be epics, stories, bugs, etc. These are not specific to BMS or Officetech.
     /// </summary>
