@@ -8,12 +8,13 @@ public interface IWorkSheetUpdater
 
     /// <summary>
     ///     Bold the text / values in a range of cells.
+    ///     This is only async to be able to get the Tab ID from the Tab-Name, the action is still batched along with other changes.
     /// </summary>
     /// <param name="sheetName">The text name of the tab within the Google Sheet.</param>
-    /// <param name="startRow">Zero-based index of the row to start at.</param>
-    /// <param name="endRow">Zero-based index, excluding this identified row.</param>
-    /// <param name="startColumn">Zero-based index of the column to start at.</param>
-    /// <param name="endColumn">Zero-based index, excluding this identified column.</param>
+    /// <param name="startRow">Zero-based index of the row to start at. This is inclusive.</param>
+    /// <param name="endRow">Zero-based index, excluding this identified row. This is exclusive.</param>
+    /// <param name="startColumn">Zero-based index of the column to start at. This is inclusive.</param>
+    /// <param name="endColumn">Zero-based index, excluding this identified column. This is exclusive.</param>
     Task BoldCellsFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
 
     /// <summary>
@@ -23,7 +24,13 @@ public interface IWorkSheetUpdater
 
     /// <summary>
     ///     Clear formatting for a range of cells (resets to defaults). Optionally removes conditional formatting rules on that sheet.
+    ///     This method is only async to be able to get the Tab ID from the Tab-Name, the action is still batched along with other changes.
     /// </summary>
+    /// <param name="sheetName">The text name of the tab within the Google Sheet.</param>
+    /// <param name="startRow">Zero-based index of the row to start at. This is inclusive.</param>
+    /// <param name="endRow">Zero-based index, excluding this identified row. This is exclusive.</param>
+    /// <param name="startColumn">Zero-based index of the column to start at. This is inclusive.</param>
+    /// <param name="endColumn">Zero-based index, excluding this identified column. This is exclusive.</param>
     Task ClearRangeFormatting(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
 
     void DeleteSheet(string sheetName);
