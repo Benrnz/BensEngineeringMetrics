@@ -3,12 +3,12 @@ using BensEngineeringMetrics.Jira;
 namespace BensEngineeringMetrics.Tasks;
 
 /// <summary>
-/// This task retrieves all Jira Issues related to top-level Jira Initiatives for the customer Envest
-/// that are marked as "Required For Go-live" but are not yet Done.
+///     This task retrieves all Jira Issues related to top-level Jira Initiatives for the customer Envest
+///     that are marked as "Required For Go-live" but are not yet Done.
 /// </summary>
-public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRepository, IOutputter outputter, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
+public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, IOutputter outputter, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
 {
-    private const string TaskKey = "ENVEST_NOT_DONE";
+    private const string TaskKey = "REMAINING_WORK_ENVEST";
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string SheetTabName = "Remaining Work";
 
@@ -24,42 +24,9 @@ public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRe
 
         await LoadData();
 
-        outputter.WriteLine($"\nFound {NotDoneIssues.Count} issues that are Required For Go-live but not Done:");
-        outputter.WriteLine(new string('-', 100));
-
-        foreach (var issue in NotDoneIssues)
-        {
-            outputter.WriteLine($"  {issue.IssueKey} | {issue.IssueType,-10} | {issue.Status,-15} | {issue.InitiativeKey,-15} | {issue.Summary}");
-        }
-
-        outputter.WriteLine($"\nTotal: {NotDoneIssues.Count} issues");
+        outputter.WriteLine($"\nFound {NotDoneIssues.Count} issues that are Required For Go-live but not Done.");
 
         await UpdateSheet();
-    }
-
-    private async Task UpdateSheet()
-    {
-        await sheetUpdater.Open(GoogleSheetId);
-        sheetUpdater.ClearRange(SheetTabName);
-
-        var reportData = new List<IList<object?>>();
-        var previousHeader = string.Empty;
-        foreach (var issue in NotDoneIssues)
-        {
-            var header = issue.InitiativeKey;
-            if (previousHeader != header)
-            {
-                reportData.Add([header, issue.InitiativeSummary]);
-                previousHeader = header;
-            }
-
-            reportData.Add([string.Empty, issue.IssueKey, issue.Summary, issue.Status]);
-        }
-
-        sheetUpdater.EditSheet($"{SheetTabName}!A1", reportData);
-
-        outputter.WriteLine($"Updated Google Sheet with {NotDoneIssues.Count} issues: https://docs.google.com/spreadsheets/d/{GoogleSheetId}/edit#gid=0");
-        await sheetUpdater.SubmitBatch();
     }
 
     private async Task LoadData()
@@ -74,7 +41,7 @@ public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRe
 
         await jiraIssueRepository.GetInitiatives();
         // Get all initiatives and PM plans
-        var (initiatives, pmPlans) = await jiraIssueRepository.GetPmPlans(monthsOfClosedIdeasToFetch: 0);
+        var (initiatives, pmPlans) = await jiraIssueRepository.GetPmPlans(0);
 
         // Filter for Envest PM Plans that are Required for Go-live
         var envestPmPlans = pmPlans
@@ -125,9 +92,39 @@ public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRe
         outputter.WriteLine($"Complete. Found {notDoneIssues.Count} issues not Done.");
     }
 
+    private async Task UpdateSheet()
+    {
+        await sheetUpdater.Open(GoogleSheetId);
+        sheetUpdater.ClearRange(SheetTabName);
+        await sheetUpdater.ClearRangeFormatting(SheetTabName, 0, 10000, 0, 26);
+
+        var reportData = new List<IList<object?>>();
+        var previousHeader = string.Empty;
+        var row = 0;
+        foreach (var issue in NotDoneIssues)
+        {
+            var header = issue.InitiativeKey;
+            if (previousHeader != header)
+            {
+                reportData.Add([JiraUtil.HyperlinkDiscoTicket(header), issue.InitiativeSummary]);
+                row++;
+                previousHeader = header;
+                await sheetUpdater.BoldCellsFormat(SheetTabName, row, row + 1, 0, 2);
+            }
+
+            reportData.Add([string.Empty, JiraUtil.HyperlinkTicket(issue.IssueKey), issue.Summary, issue.Status]);
+            row++;
+        }
+
+        sheetUpdater.EditSheet($"{SheetTabName}!A1", reportData, true);
+
+        outputter.WriteLine($"Updated Google Sheet with {NotDoneIssues.Count} issues: https://docs.google.com/spreadsheets/d/{GoogleSheetId}/edit#gid=0");
+        await sheetUpdater.SubmitBatch();
+    }
+
     /// <summary>
-    /// Represents a Jira Issue that is Required For Go-live but not yet Done,
-    /// related to an Envest Initiative.
+    ///     Represents a Jira Issue that is Required For Go-live but not yet Done,
+    ///     related to an Envest Initiative.
     /// </summary>
     public record EnvestNotDoneIssue(
         string InitiativeKey,
