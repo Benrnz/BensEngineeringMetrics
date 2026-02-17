@@ -6,9 +6,11 @@ namespace BensEngineeringMetrics.Tasks;
 /// This task retrieves all Jira Issues related to top-level Jira Initiatives for the customer Envest
 /// that are marked as "Required For Go-live" but are not yet Done.
 /// </summary>
-public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRepository, IOutputter outputter) : IEngineeringMetricsTask
+public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRepository, IOutputter outputter, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
 {
     private const string TaskKey = "ENVEST_NOT_DONE";
+    private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
+    private const string SheetTabName = "Remaining Work";
 
     public IList<EnvestNotDoneIssue> NotDoneIssues { get; private set; } = new List<EnvestNotDoneIssue>();
 
@@ -31,6 +33,33 @@ public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRe
         }
 
         outputter.WriteLine($"\nTotal: {NotDoneIssues.Count} issues");
+
+        await UpdateSheet();
+    }
+
+    private async Task UpdateSheet()
+    {
+        await sheetUpdater.Open(GoogleSheetId);
+        sheetUpdater.ClearRange(SheetTabName);
+
+        var reportData = new List<IList<object?>>();
+        var previousHeader = string.Empty;
+        foreach (var issue in NotDoneIssues)
+        {
+            var header = issue.InitiativeKey;
+            if (previousHeader != header)
+            {
+                reportData.Add([header, issue.InitiativeSummary]);
+                previousHeader = header;
+            }
+
+            reportData.Add([string.Empty, issue.IssueKey, issue.Summary, issue.Status]);
+        }
+
+        sheetUpdater.EditSheet($"{SheetTabName}!A1", reportData);
+
+        outputter.WriteLine($"Updated Google Sheet with {NotDoneIssues.Count} issues: https://docs.google.com/spreadsheets/d/{GoogleSheetId}/edit#gid=0");
+        await sheetUpdater.SubmitBatch();
     }
 
     private async Task LoadData()
@@ -49,7 +78,7 @@ public class EnvestNotDoneRequiredForGoLiveTask(IJiraIssueRepository jiraIssueRe
 
         // Filter for Envest PM Plans that are Required for Go-live
         var envestPmPlans = pmPlans
-            .Where(p => p is { Customer: Constants.Envest, RequiredForGoLive: true })
+            .Where(p => p.Customer.Contains(Constants.Envest) && p.RequiredForGoLive)
             .ToList();
 
         outputter.WriteLine($"Found {envestPmPlans.Count} {Constants.Envest} PM Plans marked as Required For Go-live");
