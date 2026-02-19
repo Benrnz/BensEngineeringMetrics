@@ -3,7 +3,7 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater) : IEngineeringMetricsTask
+public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1HuI-uYOtR66rs8B0qp8e3L39x13reFTaiOB3VN42vAQ";
     private const string TaskKey = "SPRINT_PERF";

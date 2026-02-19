@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo) : IEngineeringMetricsTask
+public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1irosbf4piwZnRSW6nzGAWu_8qwNhm4KAaISyHCpoaNI";
     private const string TaskKey = "ENVEST_EXALATE";

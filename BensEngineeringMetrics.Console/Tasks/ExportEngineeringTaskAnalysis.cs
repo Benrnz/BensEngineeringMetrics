@@ -5,7 +5,7 @@ namespace BensEngineeringMetrics.Tasks;
 /// <summary>
 ///     See https://javlnsupport.atlassian.net/wiki/spaces/DEVELOPMEN/pages/1284243457/Engineering+Tasks+Summary+-+November+2025
 /// </summary>
-public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo) : IEngineeringMetricsTask
+public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ICsvExporter exporter, IJiraIssueRepository jiraRepo, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetIdBms = "1p0A4A43L9WQQ17GMUaH5ZeVQdaXbs-ky3GQvgQVpoyk";
     private const string GoogleSheetIdOfficetech = "1w2-eJHPrn8LesuQD2F1qGlFlUM7-XAyUkTZtYvmQggs";

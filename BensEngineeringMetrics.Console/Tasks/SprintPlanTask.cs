@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
+public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1iS6iB3EA38SHJgDu8rpMFcouGlu1Az8cntKA52U07xU";
     private const string TaskKey = "SPRINT_PLAN";

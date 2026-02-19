@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
-public class ExportBugStatsTask(BugStatsWorker worker) : IEngineeringMetricsTask
+public class ExportBugStatsTask(BugStatsWorker worker, IOutputter outputter) : IEngineeringMetricsTask
 {
     // JAVPM Bug Analysis
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";

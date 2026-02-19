@@ -3,7 +3,7 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
+public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
