@@ -5,12 +5,7 @@ git checkout master
 git pull
 dotnet build BensEngineeringMetrics.sln
 cd BensEngineeringMetrics.Console\Bin\Debug\net9.0
-BensEngineeringMetrics.Console.exe BUG_STATS
-BensEngineeringMetrics.Console.exe INCIDENTS
-BensEngineeringMetrics.Console.exe INIT_ALL
-BensEngineeringMetrics.Console.exe SPRINT_PLAN
-BensEngineeringMetrics.Console.exe ENG_TASK_ANALYSIS
-BensEngineeringMetrics.Console.exe ENVEST_EXALATE
+BensEngineeringMetrics.Console.exe BATCH BUG_STATS INCIDENTS INIT_ALL SPRINT_PLAN ENG_TASK_ANALYSIS ENVEST_EXALATE REMAINING_WORK_ENVEST
 
 ECHO Finish time: %date% %time%
 
