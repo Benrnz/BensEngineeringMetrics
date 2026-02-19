@@ -26,6 +26,12 @@ public class TestOutputter : IOutputter
         this.entireLog.AppendLine(message);
     }
 
+    public void WriteLine()
+    {
+        this.testOutputHelper.WriteLine(string.Empty);
+        this.entireLog.AppendLine(string.Empty);
+    }
+
     public string GetEntireLog()
     {
         return this.entireLog.ToString();
