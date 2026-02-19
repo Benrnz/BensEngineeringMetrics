@@ -27,14 +27,14 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
         var sprintStart = args.Length > 1 ? DateTime.Parse(args[1]) : DateTime.MinValue;
         SuggestTwoMostRecentMondays(sprintStart);
         while (sprintStart == DateTime.MinValue)
         {
-            Console.WriteLine();
-            Console.Write("Enter the start date of the sprint (dd-MM-yyyy):");
+            outputter.WriteLine("");
+            outputter.WriteLine("Enter the start date of the sprint (dd-MM-yyyy):");
             DateTime.TryParse(Console.ReadLine(), out sprintStart);
         }
 
@@ -58,15 +58,15 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         jql = """Project = OTPM AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Officetech", sprintStart);
 
-        Console.WriteLine("---------------------------------------------------------------------------------------------------");
-        Console.WriteLine();
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("");
     }
 
     private async Task CalculateTeamStats(string jql, string teamName, DateTime sprintStart)
     {
-        Console.WriteLine();
-        Console.WriteLine("---------------------------------------------------------------------------------------------------");
-        Console.WriteLine($"Calculating team stats for {teamName}");
+        outputter.WriteLine("");
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine($"Calculating team stats for {teamName}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -89,16 +89,16 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             zeroEstimateTickets.Append(").");
         }
 
-        Console.WriteLine($"{teamName} Team Stats:");
-        Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
-        Console.WriteLine(
+        outputter.WriteLine($"{teamName} Team Stats:");
+        outputter.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
+        outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
-        Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
-        Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
-        Console.WriteLine($"     - Number of sprint tickets with NO ESTIMATE: {ticketNoEstimate} {zeroEstimateTickets}");
+        outputter.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
+        outputter.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
+        outputter.WriteLine($"     - Number of sprint tickets with NO ESTIMATE: {ticketNoEstimate} {zeroEstimateTickets}");
         if (p1Bugs > 0 || p2Bugs > 0)
         {
-            Console.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
+            outputter.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
         }
 
         if (sprintStart == DateTime.Today)
@@ -146,54 +146,52 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var headerRow = sheetData.FirstOrDefault();
         if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow[6].ToString(), out var sheetStart))
         {
-            Console.WriteLine("Sheet appears blank or invalid, assuming start of sprint is today...");
+            outputter.WriteLine("Sheet appears blank or invalid, assuming start of sprint is today...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
 
         if (sheetStart != sprintStart)
         {
-            Console.WriteLine($"You have entered a start date for the sprint of {sprintStart:d} but this doesn't match the date in the sheet of {sheetStart:d}.");
-            Console.WriteLine("Assuming start of sprint is the date provided...");
+            outputter.WriteLine($"You have entered a start date for the sprint of {sprintStart:d} but this doesn't match the date in the sheet of {sheetStart:d}.");
+            outputter.WriteLine("Assuming start of sprint is the date provided...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
 
         var originalTickets = sheetData.Skip(1).Select(CreateJiraIssue).ToList(); // skip header row
 
-        Console.WriteLine("Removed tickets since start of sprint:");
+        outputter.WriteLine("Removed tickets since start of sprint:");
         var removedTickets = tickets.Where(t => originalTickets.All(o => o.Key != t.Key)).ToList();
         if (removedTickets.Any())
         {
-            Console.Write("    ");
-            removedTickets.ForEach(t => Console.Write($"{t.Key} ({t.StoryPoints}sp), "));
-            Console.WriteLine();
-            Console.WriteLine($"    {removedTickets.Count} total. {removedTickets.Sum(t => t.StoryPoints):F1}sp total.");
+            var removedTicketsLine = "    " + string.Join("", removedTickets.Select(t => $"{t.Key} ({t.StoryPoints}sp), "));
+            outputter.WriteLine(removedTicketsLine);
+            outputter.WriteLine($"    {removedTickets.Count} total. {removedTickets.Sum(t => t.StoryPoints):F1}sp total.");
         }
         else
         {
-            Console.WriteLine("    None");
+            outputter.WriteLine("    None");
         }
 
-        Console.WriteLine("New tickets added since start of sprint:");
+        outputter.WriteLine("New tickets added since start of sprint:");
         var newTickets = originalTickets.Where(o => tickets.All(t => t.Key != o.Key)).ToList();
         if (newTickets.Any())
         {
-            Console.Write("    ");
-            newTickets.ForEach(t => Console.Write($"{t.Key} ({t.StoryPoints}sp), "));
-            Console.WriteLine();
-            Console.WriteLine($"    {newTickets.Count} total. {newTickets.Sum(t => t.StoryPoints):F1}sp total.");
+            var newTicketsLine = "    " + string.Join("", newTickets.Select(t => $"{t.Key} ({t.StoryPoints}sp), "));
+            outputter.WriteLine(newTicketsLine);
+            outputter.WriteLine($"    {newTickets.Count} total. {newTickets.Sum(t => t.StoryPoints):F1}sp total.");
         }
         else
         {
-            Console.WriteLine("    None");
+            outputter.WriteLine("    None");
         }
     }
 
     private async Task ProcessStartOfSprint(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
     {
         // Save the list of tickets to Google Drive
-        Console.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
+        outputter.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
         var fileName = $"{Key}_{teamName}";
         exporter.SetFileNameMode(FileNameMode.ExactName, fileName);
         var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}");
@@ -201,10 +199,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         sheetUpdater.ClearRange($"{teamName}");
         await sheetUpdater.ImportFile($"'{teamName}'!A1", pathAndFileName);
         await sheetUpdater.SubmitBatch();
-        Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
+        outputter.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
-    private static void SuggestTwoMostRecentMondays(DateTime sprintStart)
+    private void SuggestTwoMostRecentMondays(DateTime sprintStart)
     {
         if (sprintStart == DateTime.MinValue)
         {
@@ -212,7 +210,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             var daysSinceMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
             var mostRecentMonday = today.AddDays(-daysSinceMonday);
             var previousMonday = mostRecentMonday.AddDays(-7);
-            Console.WriteLine($"Suggested start dates: {mostRecentMonday:dd-MM-yyyy} (most recent Monday) or {previousMonday:dd-MM-yyyy} (previous Monday).");
+            outputter.WriteLine($"Suggested start dates: {mostRecentMonday:dd-MM-yyyy} (most recent Monday) or {previousMonday:dd-MM-yyyy} (previous Monday).");
         }
     }
 

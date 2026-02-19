@@ -15,8 +15,8 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
     public async Task ExecuteAsync(string[] args)
     {
         // This task can accept a list of space seperated sprint IDs from the commandline to extract metrics for those sprints. Omit for current sprint.
-        Console.WriteLine($"{Key} - {Description}");
-        Console.WriteLine();
+        outputter.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine("");
 
         var sprintsOfInterest = await ParseArguments(args);
 
@@ -44,7 +44,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             }
             else
             {
-                Console.WriteLine("ERROR - no sprints specified.");
+                outputter.WriteLine("ERROR - no sprints specified.");
                 return sprintMetrics;
             }
 
@@ -103,8 +103,8 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
                 }
             }
 
-            Console.WriteLine("Enter space seperated sprint numbers you would like to analyse: (eg: 2065 2066)");
-            Console.WriteLine($"Current sprints for teams are: {suggestedSprints}");
+            outputter.WriteLine("Enter space seperated sprint numbers you would like to analyse: (eg: 2065 2066)");
+            outputter.WriteLine($"Current sprints for teams are: {suggestedSprints}");
             var input = Console.ReadLine();
             if (!string.IsNullOrWhiteSpace(input))
             {
@@ -118,7 +118,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             var sprint = await runner.GetSprintById(requestedSprint);
             if (sprint is null)
             {
-                Console.WriteLine($"No such sprint found: {requestedSprint}.");
+                outputter.WriteLine($"No such sprint found: {requestedSprint}.");
                 return sprintsOfInterest;
             }
 
@@ -133,7 +133,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         var result = await greenHopperClient.GetSprintReportAsync(teamSprint.BoardId, teamSprint.CurrentSprintId);
         if (result is null)
         {
-            Console.WriteLine("No sprint report returned from API.");
+            outputter.WriteLine("No sprint report returned from API.");
             return new SprintMetrics(teamSprint, "No sprint found", "NOT-FOUND", 0, DateTimeOffset.MinValue, DateTimeOffset.MinValue, 0, 0, 0, 0);
         }
 
@@ -157,15 +157,15 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             (ticketsCompleted + ticketsCompletedOutsideSprint) / (ticketsCompletedInitialEstimate + ticketsNotCompletedInitial + ticketsRemovedInitial),
             (ticketsCompleted + ticketsCompletedOutsideSprint) / teamSprint.MaxCapacity);
 
-        Console.WriteLine($"{sprintMetrics.Team.Team}");
-        Console.WriteLine($"Sprint: {sprintMetrics.SprintName} ({sprintMetrics.SprintState}), Days remaining: {sprintMetrics.DaysRemaining}");
-        Console.WriteLine($"{sprintMetrics.StartDate:d-MMM} to {sprintMetrics.EndDate:d-MMM}");
-        Console.WriteLine($"Max theoretical capacity:            {sprintMetrics.Team.MaxCapacity}");
-        Console.WriteLine($"Committed days work:                 {sprintMetrics.CommittedDaysWork}");
-        Console.WriteLine($"Completed days work:                 {sprintMetrics.CompletedDaysWork}");
-        Console.WriteLine($"Capacity accuracy:                   {sprintMetrics.CapacityAccuracy:P0}");
-        Console.WriteLine($"Percent of theoretical max capacity: {sprintMetrics.PercentOfMaxCapacity:P0}");
-        Console.WriteLine("------------------------------------------------------------------------");
+        outputter.WriteLine($"{sprintMetrics.Team.Team}");
+        outputter.WriteLine($"Sprint: {sprintMetrics.SprintName} ({sprintMetrics.SprintState}), Days remaining: {sprintMetrics.DaysRemaining}");
+        outputter.WriteLine($"{sprintMetrics.StartDate:d-MMM} to {sprintMetrics.EndDate:d-MMM}");
+        outputter.WriteLine($"Max theoretical capacity:            {sprintMetrics.Team.MaxCapacity}");
+        outputter.WriteLine($"Committed days work:                 {sprintMetrics.CommittedDaysWork}");
+        outputter.WriteLine($"Completed days work:                 {sprintMetrics.CompletedDaysWork}");
+        outputter.WriteLine($"Capacity accuracy:                   {sprintMetrics.CapacityAccuracy:P0}");
+        outputter.WriteLine($"Percent of theoretical max capacity: {sprintMetrics.PercentOfMaxCapacity:P0}");
+        outputter.WriteLine("------------------------------------------------------------------------");
 
         return sprintMetrics;
     }

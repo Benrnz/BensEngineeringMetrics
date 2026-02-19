@@ -48,7 +48,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine($"{Key} - {Description}");
 
         await RetrieveAllData();
         PopulatePmPlansOnSprintTickets();
@@ -92,31 +92,31 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
     private async Task RetrieveAllData()
     {
         // Get all PMPLAN tickets
-        Console.WriteLine("Extracting PMPLAN tickets...");
+        outputter.WriteLine("Extracting PMPLAN tickets...");
         var jqlPmPlans = "IssueType = Idea AND status NOT IN (\"Feature delivered\", Cancelled) ORDER BY Key";
-        Console.WriteLine(jqlPmPlans);
+        outputter.WriteLine(jqlPmPlans);
         this.pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(i => new PmPlanIssue(i)).ToList();
 
         // Get all children of each PMPLAN
         var childrenJql = "issue in linkedIssues(\"{0}\") OR parent in linkedIssues(\"{0}\") ORDER BY key";
-        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
+        outputter.WriteLine($"ForEach PMPLAN: {childrenJql}");
         foreach (var pmPlan in this.pmPlans)
         {
             var childrenQuery = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
             pmPlan.ChildrenStories = childrenQuery.Select(i => new JiraIssue(i).AddPmPlanDetails(pmPlan)).ToList();
-            Console.WriteLine($"Fetched {pmPlan.ChildrenStories.Count} children for {pmPlan.Key}");
+            outputter.WriteLine($"Fetched {pmPlan.ChildrenStories.Count} children for {pmPlan.Key}");
             pmPlan.TotalStoryPoints = pmPlan.ChildrenStories.Sum(issue => issue.StoryPoints);
             pmPlan.RunningTotalWorkDone = pmPlan.TotalWorkDone = pmPlan.ChildrenStories.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);
         }
 
         // Get all tickets in open and future sprints for the teams.
         var query = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND (Sprint IN openSprints() OR Sprint IN futureSprints())""";
-        Console.WriteLine(query);
+        outputter.WriteLine(query);
         this.openFutureSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(i => new JiraIssue(i)).ToList();
 
         // Get closed sprint tickets going back 6 months.
         var queryPast = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND Sprint IN closedSprints() AND createdDate > -180d""";
-        Console.WriteLine(queryPast);
+        outputter.WriteLine(queryPast);
         this.closedSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(queryPast, Fields)).Select(i => new JiraIssue(i)).ToList();
     }
 
