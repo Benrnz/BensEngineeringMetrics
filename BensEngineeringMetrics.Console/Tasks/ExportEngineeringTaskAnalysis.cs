@@ -67,7 +67,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         var totalCount = (double)this.issues.Count;
         if (totalCount == 0)
         {
-            Console.WriteLine("No data returned.");
+            outputter.WriteLine("No data returned.");
             return;
         }
 
@@ -91,7 +91,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
         };
         foreach (var group in groupedByInitiative)
         {
-            Console.WriteLine($"{group.Initiative}  Tickets:{group.TicketCount} StoryPointTotal:{group.StoryPointTotal}");
+            outputter.WriteLine($"{group.Initiative}  Tickets:{group.TicketCount} StoryPointTotal:{group.StoryPointTotal}");
             chartData.Add([group.Initiative, null, group.StoryPointTotal, group.TicketCount]);
         }
 
@@ -122,7 +122,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
             string? dateProvided;
             if (loop)
             {
-                Console.WriteLine($"Enter a {prompt}. Or enter to exit.");
+                outputter.WriteLine($"Enter a {prompt}. Or enter to exit.");
                 dateProvided = Console.ReadLine();
             }
             else
@@ -140,7 +140,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
                 return result;
             }
 
-            Console.WriteLine($"ERROR: Invalid start date provided: {dateProvided}");
+            outputter.WriteLine($"ERROR: Invalid start date provided: {dateProvided}");
         } while (true);
     }
 
@@ -301,7 +301,7 @@ public class ExportEngineeringTaskAnalysis(IJiraQueryRunner runner, IWorkSheetUp
 
         var jql =
             $"project in ({productKeys}) and type != EPIC AND statusCategoryChangedDate >= '{this.startDate:yyyy-MM-dd}' and statusCategory = Done AND statusCategoryChangedDate < '{this.endDate:yyyy-MM-dd}'";
-        Console.WriteLine(jql);
+        outputter.WriteLine(jql);
         this.issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
         CreateEngineeringExcellencePieChartData();

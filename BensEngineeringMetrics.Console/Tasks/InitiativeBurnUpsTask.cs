@@ -18,7 +18,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
 
     public async Task ExecuteAsync(InitiativeProgressTableTask mainTask, string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine($"{Key} - {Description}");
 
         await sheetUpdater.Open(GoogleSheetId);
         var initiativeKeys = mainTask.AllIssuesData.Keys;
