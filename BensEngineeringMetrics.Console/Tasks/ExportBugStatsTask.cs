@@ -12,10 +12,10 @@ public class ExportBugStatsTask(BugStatsWorker worker, IOutputter outputter) : I
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
-        Console.WriteLine($"--------------------- {Constants.JavPmJiraProjectKey} ---------------------");
+        outputter.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine($"--------------------- {Constants.JavPmJiraProjectKey} ---------------------");
         await worker.UpdateSheet(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
-        Console.WriteLine($"--------------------- {Constants.OtPmJiraProjectKey} ---------------------");
+        outputter.WriteLine($"--------------------- {Constants.OtPmJiraProjectKey} ---------------------");
         await worker.UpdateSheet(Constants.OtPmJiraProjectKey, OtPmGoogleSheetId);
     }
 }

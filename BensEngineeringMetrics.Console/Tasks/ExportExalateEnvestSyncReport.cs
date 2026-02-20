@@ -24,8 +24,8 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
-        Console.WriteLine();
+        outputter.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine("");
 
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.ClearRange(AllSyncedTicketsSheetName);
@@ -42,7 +42,7 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
     private async Task<IReadOnlyList<JiraIssue>> ExportAllSyncedTickets()
     {
         var ticketsSyncedJql = """ "Exalate[Short text]" IS NOT EMPTY""";
-        Console.WriteLine(ticketsSyncedJql);
+        outputter.WriteLine(ticketsSyncedJql);
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(ticketsSyncedJql, Fields))
             .Select(JiraIssue.CreateJiraIssue)
             .OrderBy(j => j.Key)
@@ -70,7 +70,7 @@ public class ExportExalateEnvestSyncReport(IJiraQueryRunner runner, IWorkSheetUp
         // Get any ticket that is directly marked as Envest as the Customer
         var jqlDirectEnvestTickets =
             $"type IN ('{Constants.BugType}', '{Constants.StoryType}', '{Constants.ImprovementType}', '{Constants.SchemaTaskType}') AND \"Customer/s (Multi Select)[Select List (multiple choices)]\" = Envest AND status != Done ORDER BY key";
-        Console.WriteLine(jqlDirectEnvestTickets);
+        outputter.WriteLine(jqlDirectEnvestTickets);
         var directEnvestTickets = (await runner.SearchJiraIssuesWithJqlAsync(jqlDirectEnvestTickets, Fields))
             .Select(JiraIssue.CreateJiraIssue)
             .ToList();
