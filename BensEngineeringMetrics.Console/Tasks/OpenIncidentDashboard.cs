@@ -3,7 +3,7 @@ using BensEngineeringMetrics.Slack;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient) : IEngineeringMetricsTask
+public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string TaskKey = "INCIDENTS";
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
@@ -32,9 +32,9 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine("Updating Incident Dashboard for JAVPM...");
+        outputter.WriteLine("Updating Incident Dashboard for JAVPM...");
         await BuildAllTablesForProject(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
-        Console.WriteLine("Updating Incident Dashboard for OTPM...");
+        outputter.WriteLine("Updating Incident Dashboard for OTPM...");
         await BuildAllTablesForProject(Constants.OtPmJiraProjectKey, OtPmGoogleSheetId);
     }
 
@@ -59,7 +59,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
     {
-        Console.WriteLine("Creating table for open ticket summary...");
+        outputter.WriteLine("Creating table for open ticket summary...");
 
         // Row 1
         this.sheetData.Add([null, "Number of P1s", "Number of P2s"]);
@@ -112,7 +112,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     private void CreateTableForPriorityBugList(IReadOnlyList<JiraIssue> jiraIssues, string severity)
     {
         var priorityName = severity == Constants.SeverityCritical ? "P1" : "P2";
-        Console.WriteLine($"Creating table for {priorityName} list...");
+        outputter.WriteLine($"Creating table for {priorityName} list...");
 
         this.sheetData.Add([$"List of Open {priorityName}s", "Status", "Customer", "Summary", "Sprint", "Last Activity (days ago)"]);
         sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
@@ -134,7 +134,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     private async Task CreateTableForSlackChannels()
     {
-        Console.WriteLine("Creating table for Slack Channel Incidents...");
+        outputter.WriteLine("Creating table for Slack Channel Incidents...");
         if (!this.incidentSlackChannels.Any())
         {
             this.incidentSlackChannels = await slack.FindAllChannels("incident-");
@@ -189,7 +189,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     private async Task TeamVelocityTable(string project)
     {
-        Console.WriteLine("Creating table for team velocity...");
+        outputter.WriteLine("Creating table for team velocity...");
         this.sheetData.Add([
             "Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of work done (based on SP)", "P2s Defects Avg", "% of work done (based on SP)", "Other Defects Avg", "% of work done"
         ]);

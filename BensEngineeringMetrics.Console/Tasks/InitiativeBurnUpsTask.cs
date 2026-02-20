@@ -1,7 +1,7 @@
 ﻿using BensEngineeringMetrics.Jira;
 namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IEngineeringMetricsTask
+public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_BURNUPS";
@@ -18,7 +18,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
 
     public async Task ExecuteAsync(InitiativeProgressTableTask mainTask, string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine($"{Key} - {Description}");
 
         await sheetUpdater.Open(GoogleSheetId);
         var initiativeKeys = mainTask.AllIssuesData.Keys;

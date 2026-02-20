@@ -5,7 +5,7 @@ using File = Google.Apis.Drive.v3.Data.File;
 
 namespace BensEngineeringMetrics.Google;
 
-public class GoogleDriveUploader : ICloudUploader
+public class GoogleDriveUploader(IOutputter outputter) : ICloudUploader
 {
     private static readonly string[] Scopes = { DriveService.Scope.DriveFile };
     private static readonly string ApplicationName = "Google Drive CSV Uploader";
@@ -42,13 +42,13 @@ public class GoogleDriveUploader : ICloudUploader
         {
             // File exists, perform an update
             await UpdateExistingFile(service, fileId, csvFilePath);
-            Console.WriteLine($"File '{cloudFileName}' updated successfully.");
+            outputter.WriteLine($"File '{cloudFileName}' updated successfully.");
         }
         else
         {
             // File does not exist, perform a create
             await CreateNewFileInFolderAsync(service, csvFilePath, cloudFileName, parentFolderId);
-            Console.WriteLine($"File '{cloudFileName}' created successfully.");
+            outputter.WriteLine($"File '{cloudFileName}' created successfully.");
         }
     }
 
@@ -73,7 +73,7 @@ public class GoogleDriveUploader : ICloudUploader
         var uploadedFile = request.ResponseBody;
         if (uploadedFile != null)
         {
-            Console.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");
+            outputter.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");
         }
     }
 
@@ -112,7 +112,7 @@ public class GoogleDriveUploader : ICloudUploader
         }
 
         // If the folder doesn't exist, create it under the root directory
-        Console.WriteLine($"Folder '{folderName}' not found. Creating a new one...");
+        outputter.WriteLine($"Folder '{folderName}' not found. Creating a new one...");
 
         var folderMetadata = new File
         {
@@ -127,12 +127,12 @@ public class GoogleDriveUploader : ICloudUploader
 
         if (newFolder != null)
         {
-            Console.WriteLine($"New folder created with ID: {newFolder.Id}");
+            outputter.WriteLine($"New folder created with ID: {newFolder.Id}");
             return newFolder.Id;
         }
 
         // Handle the case where folder creation fails
-        Console.WriteLine("Error: Failed to create the new folder.");
+        outputter.WriteLine("Error: Failed to create the new folder.");
         return null;
     }
 
@@ -145,7 +145,7 @@ public class GoogleDriveUploader : ICloudUploader
         var uploadedFile = updateRequest.ResponseBody;
         if (uploadedFile != null)
         {
-            Console.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");
+            outputter.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");
         }
     }
 }

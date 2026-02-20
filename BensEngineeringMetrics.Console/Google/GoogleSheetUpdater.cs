@@ -6,7 +6,7 @@ using File = System.IO.File;
 
 namespace BensEngineeringMetrics.Google;
 
-public class GoogleSheetUpdater : IWorkSheetUpdater
+public class GoogleSheetUpdater(IOutputter outputter) : IWorkSheetUpdater
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
@@ -220,12 +220,12 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         }
         catch (FileNotFoundException)
         {
-            Console.WriteLine($"Error: The CSV file '{csvFileName}' was not found.");
+            outputter.WriteLine($"Error: The CSV file '{csvFileName}' was not found.");
             return;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"An error occurred while reading the CSV file: {ex.Message}");
+            outputter.WriteLine($"An error occurred while reading the CSV file: {ex.Message}");
             return;
         }
 
@@ -378,7 +378,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
                 }
                 else
                 {
-                    Console.WriteLine($"Warning: Sheet '{name}' not found to delete.");
+                    outputter.WriteLine($"Warning: Sheet '{name}' not found to delete.");
                 }
             }
         }
@@ -425,7 +425,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
                 }
                 else
                 {
-                    Console.WriteLine($"Warning: Sheet '{item.SheetName}' not found to apply date format.");
+                    outputter.WriteLine($"Warning: Sheet '{item.SheetName}' not found to apply date format.");
                 }
             }
         }

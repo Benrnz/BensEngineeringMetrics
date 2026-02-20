@@ -53,7 +53,7 @@ public class MultiBatchTask(IServiceProvider serviceProvider, IOutputter writer)
             try
             {
                 var sw = Stopwatch.StartNew();
-                writer.WriteLine($"{entry.TaskKey} [{string.Join(' ', entry.TaskArgs)}] Starting execution...");
+                writer.WriteLine($"{entry.TaskKey} [{string.Join(' ', entry.TaskArgs.Skip(1))}] Starting execution...");
                 await task.ExecuteAsync(taskArgs);
                 sw.Stop();
                 writer.WriteLine($"[{entry.TaskKey}] Completed successfully in {sw.Elapsed.TotalSeconds:N2} seconds.");
