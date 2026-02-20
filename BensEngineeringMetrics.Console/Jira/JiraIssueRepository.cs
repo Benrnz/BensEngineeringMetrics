@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Jira;
 
-internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueRepository
+internal class JiraIssueRepository(IJiraQueryRunner runner, IOutputter outputter) : IJiraIssueRepository
 {
     private List<BasicJiraInitiative> initiatives = new();
     private List<BasicJiraPmPlan> pmPlans = new();
@@ -40,7 +40,7 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
         }
 
         this.initiatives.AddRange(await runner.GetInitiatives(monthsOfClosedInitiativesToFetch));
-        Console.WriteLine($"Retrieved {this.initiatives.Count} initiatives.");
+        outputter.WriteLine($"Retrieved {this.initiatives.Count} initiatives.");
 
         // Clear cached mappings since initiatives changed
         this.ticketToInitiativeMap = new Dictionary<string, string>();
@@ -57,7 +57,7 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
         }
 
         this.pmPlans.AddRange(await runner.GetIdeas(monthsOfClosedIdeasToFetch: monthsOfClosedIdeasToFetch));
-        Console.WriteLine($"Retrieved {this.pmPlans.Count} PmPlan Ideas.");
+        outputter.WriteLine($"Retrieved {this.pmPlans.Count} PmPlan Ideas.");
 
         await MapPmPlanIdeasToInitiatives();
 
@@ -116,7 +116,7 @@ internal class JiraIssueRepository(IJiraQueryRunner runner) : IJiraIssueReposito
             .OrderBy(x => x);
 
         var epicChildren = (await runner.GetEpicChildren(allEpicKeys.ToArray())).ToList();
-        Console.WriteLine($"PmPlan grandchildren fetched: {epicChildren.Count} tickets");
+        outputter.WriteLine($"PmPlan grandchildren fetched: {epicChildren.Count} tickets");
         var newPmPlanList = new List<BasicJiraPmPlan>();
         foreach (var pmPlan in this.pmPlans)
         {
