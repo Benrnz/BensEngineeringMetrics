@@ -38,7 +38,7 @@ public class MultiBatchTask(IServiceProvider serviceProvider, IOutputter writer)
         }
 
         var stopWatch = Stopwatch.StartNew();
-        writer.WriteLine($"{DateTime.Now} Executing {batchEntries.Count} tasks in batch:");
+        writer.WriteLine($"{DateTime.Now} Executing {batchEntries.Count} tasks in batch: {string.Join(' ', batchEntries.Select(b => b.TaskKey))}");
         writer.WriteLine();
 
         // Execute each task in sequence
