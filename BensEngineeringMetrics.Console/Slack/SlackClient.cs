@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace BensEngineeringMetrics.Slack;
 
-public class SlackClient : ISlackClient
+public class SlackClient(IOutputter outputter) : ISlackClient
 {
     private const string BaseApiUrl = "https://slack.com/api/";
     private const string SubTypeChannelJoin = "channel_join";
@@ -16,8 +16,8 @@ public class SlackClient : ISlackClient
 
         var (allChannels, totalChannels) = await GetAllSlackChannels(partialChannelName);
 
-        Console.WriteLine($"Total channels retrieved and searched: {totalChannels}");
-        Console.WriteLine($"Found {allChannels.Count} channel(s) matching '{partialChannelName}'");
+        outputter.WriteLine($"Total channels retrieved and searched: {totalChannels}");
+        outputter.WriteLine($"Found {allChannels.Count} channel(s) matching '{partialChannelName}'");
 
         // Join channels and fetch last message timestamp for each channel
         var channelsWithTimestamps = new List<SlackChannel>();
@@ -37,7 +37,7 @@ public class SlackClient : ISlackClient
 
         if (skippedChannels > 0)
         {
-            Console.WriteLine($"Note: Could not retrieve timestamps for {skippedChannels} channel(s)");
+            outputter.WriteLine($"Note: Could not retrieve timestamps for {skippedChannels} channel(s)");
         }
 
         return channelsWithTimestamps;
@@ -98,7 +98,7 @@ public class SlackClient : ISlackClient
         catch (Exception ex)
         {
             // Any other errors - return null
-            Console.WriteLine(ex);
+            outputter.WriteLine(ex);
             return new List<SlackMessage>();
         }
 

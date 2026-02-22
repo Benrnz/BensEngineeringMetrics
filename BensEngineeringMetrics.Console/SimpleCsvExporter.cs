@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BensEngineeringMetrics;
 
-public class SimpleCsvExporter : ICsvExporter
+public class SimpleCsvExporter(IOutputter outputter) : ICsvExporter
 {
     private FileNameMode fileNameMode = FileNameMode.Hint;
 
@@ -21,7 +21,7 @@ public class SimpleCsvExporter : ICsvExporter
         var data = issues.ToList();
         if (!data.Any())
         {
-            Console.WriteLine("No data to export.");
+            outputter.WriteLine("No data to export.");
             return string.Empty;
         }
 
@@ -38,7 +38,7 @@ public class SimpleCsvExporter : ICsvExporter
 
         var pathAndFileName = $"{App.DefaultFolder}\\{fileName}.csv";
         WriteCsv(pathAndFileName, data, overrideSerialiseHeader, overrideSerialiseRecord);
-        Console.WriteLine(Path.GetFullPath(pathAndFileName));
+        outputter.WriteLine(Path.GetFullPath(pathAndFileName));
         return pathAndFileName;
     }
 

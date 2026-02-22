@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Jira;
 
-public class JiraGreenHopperClient : IGreenHopperClient
+public class JiraGreenHopperClient(IOutputter outputter) : IGreenHopperClient
 {
     private const string BaseUrl = "https://javlnsupport.atlassian.net/rest/greenhopper/1.0/";
 
@@ -13,10 +13,10 @@ public class JiraGreenHopperClient : IGreenHopperClient
         var response = await App.HttpJira.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
-            Console.WriteLine("ERROR calling Greenhopper sprint report API!");
-            Console.WriteLine(response.StatusCode);
-            Console.WriteLine(response.ReasonPhrase);
-            Console.WriteLine(url);
+            outputter.WriteLine("ERROR calling Greenhopper sprint report API!");
+            outputter.WriteLine(response.StatusCode);
+            outputter.WriteLine(response.ReasonPhrase);
+            outputter.WriteLine(url);
         }
 
         response.EnsureSuccessStatusCode();

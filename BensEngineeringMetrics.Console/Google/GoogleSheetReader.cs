@@ -5,7 +5,7 @@ using Google.Apis.Util.Store;
 
 namespace BensEngineeringMetrics.Google;
 
-public class GoogleSheetReader : IWorkSheetReader
+public class GoogleSheetReader(IOutputter outputter) : IWorkSheetReader
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
@@ -29,7 +29,7 @@ public class GoogleSheetReader : IWorkSheetReader
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"An error occurred while reading the Google Sheet: {ex.Message}");
+            outputter.WriteLine($"An error occurred while reading the Google Sheet: {ex.Message}");
             throw;
         }
     }
@@ -94,12 +94,12 @@ public class GoogleSheetReader : IWorkSheetReader
         }
         catch (FileNotFoundException)
         {
-            Console.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
-            Console.WriteLine("Please download it from the Google Cloud Console and place it next to the application executable.");
+            outputter.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
+            outputter.WriteLine("Please download it from the Google Cloud Console and place it next to the application executable.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"An error occurred during authentication: {ex.Message}");
+            outputter.WriteLine($"An error occurred during authentication: {ex.Message}");
         }
 
         return false;

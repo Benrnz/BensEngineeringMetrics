@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
+public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater, IOutputter outputter) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_TABLE";
@@ -41,7 +41,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine($"{Key} - {Description}");
+        outputter.WriteLine($"{Key} - {Description}");
 
         await LoadData();
         await sheetUpdater.Open(GoogleSheetId);
@@ -71,7 +71,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         var initiativeKeys = await GetInitiativesForReport();
         if (!initiativeKeys.Any())
         {
-            Console.WriteLine("No Product Initiatives found to process. Exiting.");
+            outputter.WriteLine("No Product Initiatives found to process. Exiting.");
             return;
         }
 
@@ -169,7 +169,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         AllIssuesData = new Dictionary<string, IReadOnlyList<JiraIssue>>();
         foreach (var initiative in initiativeKeys)
         {
-            Console.WriteLine($"* Finding all work for {initiative}");
+            outputter.WriteLine($"* Finding all work for {initiative}");
             var jiraInitiative = await GetInitiativeDetails(initiative);
             var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(string.Format(pmPlanJql, initiative), PmPlanFields);
 
@@ -182,7 +182,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 DateTimeOffset? target = JiraFields.ProjectTarget.Parse(pmPlan);
                 var pmPlanData = new JiraPmPlan(pmPlanKey, summary, new StatLine(), status, target);
                 var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(javPmKeyql, pmPlanKey), IssueFields);
-                Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
+                outputter.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
                 var range = children.Select<dynamic, JiraIssue>(i => CreateJiraIssue(pmPlanKey, summary, i)).ToList();
                 pmPlanData.Progress.TotalStoryPoints = range.Sum(i => i.StoryPoints);
                 pmPlanData.Progress.RemainingTicketCount = range.Count(i => i.Status != Constants.DoneStatus);
@@ -191,7 +191,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 jiraInitiative.PmPlans.Add(pmPlanData);
             }
 
-            Console.WriteLine($"Found {allIssues.Count} unique stories");
+            outputter.WriteLine($"Found {allIssues.Count} unique stories");
             jiraInitiative.Progress.TotalStoryPoints = jiraInitiative.PmPlans.Sum(p => p.Progress.TotalStoryPoints);
             jiraInitiative.Progress.DoneStoryPoints = jiraInitiative.PmPlans.Sum(p => p.Progress.DoneStoryPoints);
             jiraInitiative.Progress.RemainingTicketCount = jiraInitiative.PmPlans.Sum(p => p.Progress.RemainingTicketCount);
@@ -216,10 +216,10 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
     {
         var list = await sheetReader.GetSheetNames();
         var initiatives = list.Where(x => x.StartsWith(ProductInitiativePrefix)).ToList();
-        Console.WriteLine("Updating burn-up charts for the following Product Initiatives:");
+        outputter.WriteLine("Updating burn-up charts for the following Product Initiatives:");
         foreach (var initiative in initiatives)
         {
-            Console.WriteLine($"*   {initiative}");
+            outputter.WriteLine($"*   {initiative}");
         }
 
         return initiatives;
