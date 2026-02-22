@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeAggregateTableAndBurnup(InitiativeProgressTableTask tableTask, InitiativeBurnUpsTask burnUpTask) : IEngineeringMetricsTask
+public class InitiativeAggregateTableAndBurnup(InitiativeProgressTableTask tableTask, InitiativeBurnUpsTask burnUpTask, RemainingWorkEnvestTask remainingTask) : IEngineeringMetricsTask
 {
     public string Description => "Run both INIT_TABLE and INIT_BURNUP";
     public string Key => "INIT_ALL";
@@ -10,5 +10,7 @@ public class InitiativeAggregateTableAndBurnup(InitiativeProgressTableTask table
         await tableTask.ExecuteAsync(args);
 
         await burnUpTask.ExecuteAsync(tableTask, args);
+
+        await remainingTask.ExecuteAsync(args);
     }
 }
