@@ -97,12 +97,16 @@ public class RemainingWorkEnvestTask(IJiraIssueRepository jiraIssueRepository, I
         var reportData = new List<IList<object?>>();
         var previousHeader = string.Empty;
         var row = 1;
-        foreach (var issue in this.notDoneIssues)
+        foreach (var issue in this.notDoneIssues.OrderBy(i => i.InitiativeKey))
         {
             var header = issue.InitiativeKey;
             if (previousHeader != header)
             {
-                reportData.Add([JiraUtil.HyperlinkDiscoTicket(header), issue.InitiativeSummary]);
+                var issueCount = this.notDoneIssues.Count(i => i.InitiativeKey == header);
+                var issueSpTotal = this.notDoneIssues.Where(i => i.InitiativeKey == header)
+                    .Join(this.extraData, i => i.IssueKey, d => d.Key, (i, d) => d.StoryPoints)
+                    .Sum();
+                reportData.Add([JiraUtil.HyperlinkDiscoTicket(header), issue.InitiativeSummary, null, issueCount, issueSpTotal]);
                 previousHeader = header;
                 await sheetUpdater.BoldCellsFormat(SheetTabName, row, row + 1, 0, 3);
                 row++;
