@@ -70,9 +70,14 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         return DateTimeOffset.MinValue;
     }
 
-    private double GetValueAsDays(JsonNode? node)
+    private double GetValueAsDays(JsonNode? node, bool usesStoryPoints)
     {
         var value = node?["value"]?.GetValue<double>() ?? 0.0;
+        if (usesStoryPoints)
+        {
+            return value;
+        }
+
         return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
     }
 
@@ -137,12 +142,12 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             return new SprintMetrics(teamSprint, "No sprint found", "NOT-FOUND", 0, DateTimeOffset.MinValue, DateTimeOffset.MinValue, 0, 0, 0, 0);
         }
 
-        var contents = result["contents"] ?? throw new NotSupportedException("No contents returned from API.");
-        var ticketsCompletedInitialEstimate = GetValueAsDays(contents["completedIssuesInitialEstimateSum"]);
-        var ticketsCompleted = GetValueAsDays(contents["completedIssuesEstimateSum"]);
-        var ticketsNotCompletedInitial = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"]);
-        var ticketsRemovedInitial = GetValueAsDays(contents["puntedIssuesInitialEstimateSum"]);
-        var ticketsCompletedOutsideSprint = GetValueAsDays(contents["issuesCompletedInAnotherSprintEstimateSum"]);
+        var contents = result["contents"] ?? throw new NotSupportedException("No contents returned. contents = {JsonObject} JsonObject[14] Explored from API.");
+        var ticketsCompletedInitialEstimate = GetValueAsDays(contents["completedIssuesInitialEstimateSum"], teamSprint.Team.UsesStoryPoints);
+        var ticketsCompleted = GetValueAsDays(contents["completedIssuesEstimateSum"],teamSprint.Team.UsesStoryPoints);
+        var ticketsNotCompletedInitial = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"],teamSprint.Team.UsesStoryPoints);
+        var ticketsRemovedInitial = GetValueAsDays(contents["puntedIssuesInitialEstimateSum"],teamSprint.Team.UsesStoryPoints);
+        var ticketsCompletedOutsideSprint = GetValueAsDays(contents["issuesCompletedInAnotherSprintEstimateSum"],teamSprint.Team.UsesStoryPoints);
         var sprint = result["sprint"] ?? throw new NotSupportedException("No sprint returned from API.");
 
         var sprintMetrics = new SprintMetrics(
