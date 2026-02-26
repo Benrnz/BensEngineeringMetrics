@@ -3,8 +3,9 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, IOutputter outputter)
+public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, IOutputter outputter)
 {
+    private const string CustomerFilter = """AND "Customer/s (Multi Select)[Select List (multiple choices)]" = NZbrokers """;
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -28,18 +29,12 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     private List<string> allCodeAreas = new();
     private string keyString = string.Empty;
 
-    public void Clear()
-    {
-        this.allCategories.Clear();
-        this.allCodeAreas.Clear();
-    }
-
     public async Task UpdateSheet(string jiraProjectKey, string googleSheetId)
     {
         try
         {
             this.keyString = jiraProjectKey;
-            var jql = $"""project = {jiraProjectKey} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M")""";
+            var jql = $"""project = {jiraProjectKey} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M") {CustomerFilter}""";
             outputter.WriteLine(jql);
             outputter.WriteLine();
             var jiras = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields))
@@ -49,21 +44,12 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             await sheetUpdater.Open(googleSheetId);
             await ExportBugStatsCodeAreas(jiras);
-            if (await sheetUpdater.DoesSheetExist("CodeAreasExclEnvest"))
-            {
-                await ExportBugStatsCodeAreasExclEnvest(jiras);
-            }
 
             await ExportBugStatsRecentDevelopment(jiras);
-            if (await sheetUpdater.DoesSheetExist("RecentDevExclEnvest"))
-            {
-                await ExportBugStatsRecentDevelopmentExclEnvest(jiras);
-            }
 
             var monthTotalsForSeverities = await ExportBugStatsSeverities(jiras);
             await ExportBugStatsReportedVsBacklog(monthTotalsForSeverities);
             await ExportBugStatsReportedVsResolved(monthTotalsForSeverities);
-            await ExportBugStatsEnvestSeverities(jiras, monthTotalsForSeverities);
             await ExportBugStatsCategories(jiras);
             sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         }
@@ -135,7 +121,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-Categories");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-Categories");
         var fileName = exporter.Export(bugCounts, SerialiseCatergoriesHeaderRow, SerialiseToCsv);
 
         await sheetUpdater.ImportFile("'ProductCategories'!A1", fileName);
@@ -159,52 +145,10 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-Areas");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-Areas");
         var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
 
         await sheetUpdater.ImportFile("'CodeAreas'!A1", fileName);
-    }
-
-    private async Task ExportBugStatsCodeAreasExclEnvest(List<JiraIssue> jiras)
-    {
-        var currentMonth = CalculateStartDate();
-        var bugCounts = new List<BarChartDataCodeAreas>();
-        this.allCodeAreas = ParseCodeAreas(jiras.Select(j => JoinCodeAreasParent(j.CodeArea, j.CodeAreaParent)).Distinct().ToList());
-        do
-        {
-            var filteredList = jiras.Where(i => !i.Customer.Contains(Constants.Envest) && i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
-            var areaCounts = new Dictionary<string, int>();
-            foreach (var codeArea in this.allCodeAreas)
-            {
-                areaCounts[codeArea] = filteredList.Count(j => CodeAreaMatches(j.CodeArea, j.CodeAreaParent, codeArea));
-            }
-
-            bugCounts.Add(new BarChartDataCodeAreas(currentMonth, areaCounts));
-            currentMonth = currentMonth.AddMonths(1);
-        } while (currentMonth < DateTime.Today);
-
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-AreasExclEnvest");
-        var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
-
-        await sheetUpdater.ImportFile("'CodeAreasExclEnvest'!A1", fileName);
-    }
-
-    private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
-    {
-        var chartData = new List<LayeredBarChartData>();
-        var envestChartData = await ExportBugStatsSeverities(jiras, Constants.Envest);
-        foreach (var totalChartDataMonth in severityTotals)
-        {
-            var month = totalChartDataMonth.Month;
-            var envestOnlyChartData = envestChartData.Single(x => x.Month == month);
-            var row = new LayeredBarChartData(totalChartDataMonth, envestOnlyChartData);
-            chartData.Add(row);
-        }
-
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-SeveritiesEnvest");
-
-        var fileName = exporter.Export(chartData, () => "Month,Totals,,,Envest Only\n,P1,P2,Other,EP1,EP2,EOther", SerialiseToCsv);
-        await sheetUpdater.ImportFile("'Envest'!A1", fileName);
     }
 
     private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
@@ -225,42 +169,15 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-RecentDev");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-RecentDev");
         var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
         await sheetUpdater.ImportFile("'RecentDev'!A1", fileName);
-    }
-
-    private async Task ExportBugStatsRecentDevelopmentExclEnvest(List<JiraIssue> jiras)
-    {
-        var currentMonth = CalculateStartDate();
-        var bugCounts = new List<BarChartData>();
-        do
-        {
-            var filteredList = jiras
-                .Where(i =>
-                    !i.Customer.Contains(Constants.Envest)
-                    && i.Created >= currentMonth
-                    && i.Created < currentMonth.AddMonths(1)
-                    && i is { Resolution: Constants.CodeFixLast6, BugType: Constants.BugTypeProduction })
-                .ToList();
-            // ReSharper disable InconsistentNaming
-            var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
-            var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
-            // ReSharper restore InconsistentNaming
-            var othersTotal = filteredList.Count - p1sTotal - p2sTotal;
-            bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
-            currentMonth = currentMonth.AddMonths(1);
-        } while (currentMonth < DateTime.Today);
-
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-RecentDevExclEnvest");
-        var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
-        await sheetUpdater.ImportFile("'RecentDevExclEnvest'!A1", fileName);
     }
 
     private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
     {
         var chartData = new List<LayeredBarChartData>();
-        var jql = $"""project = {this.keyString} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done""";
+        var jql = $"""project = {this.keyString} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done {CustomerFilter} """;
         outputter.WriteLine(jql);
         var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         foreach (var totalChartDataMonth in severityTotals)
@@ -275,7 +192,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             chartData.Add(row);
         }
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-ReportVsBacklog");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-ReportVsBacklog");
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported (Left Axis),,,Ticket Backlog (Right Axis)\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
         await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1", fileName);
@@ -284,15 +201,17 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     private async Task ExportBugStatsReportedVsResolved(List<BarChartData> severityTotals)
     {
         var chartData = new List<LayeredBarChartData>();
-        var jql = $"""
-                   project = "{this.keyString}"
-                   AND status = Done
-                   AND type = Bug
-                   AND Severity IN (Critical, Major)
-                   AND "Bug Type[Dropdown]" IN (Production, UAT)
-                   AND resolutiondate >= startOfMonth("-13M")
-                   ORDER BY resolutiondate
-                   """;
+        var jql =
+            $"""
+             project = "{this.keyString}"
+             AND status = Done
+             AND type = Bug
+             AND Severity IN (Critical, Major)
+             AND "Bug Type[Dropdown]" IN (Production, UAT)
+             AND resolutiondate >= startOfMonth("-13M")
+             {CustomerFilter}
+             ORDER BY resolutiondate
+             """;
         outputter.WriteLine(jql);
         var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         foreach (var totalChartDataMonth in severityTotals)
@@ -307,7 +226,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             chartData.Add(row);
         }
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-ReportVsResolved");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-ReportVsResolved");
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported (Left Axis),,,Resolved Bugs (Right Axis)\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
         await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1", fileName);
@@ -334,7 +253,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         if (customerFilter is null)
         {
             // Only update the master Severities total sheet if we're running without a specific customer filter.
-            exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-Severities");
+            exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-Severities");
             var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
             await sheetUpdater.ImportFile("'Severities'!A1", fileName);
         }
