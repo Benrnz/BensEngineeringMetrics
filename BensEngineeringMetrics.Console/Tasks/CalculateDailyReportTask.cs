@@ -66,7 +66,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     {
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
-        outputter.WriteLine($"Calculating team stats for {teamName}");
+        outputter.WriteLine($"Calculating team sprint stats for {teamName} start date {sprintStart:d}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
