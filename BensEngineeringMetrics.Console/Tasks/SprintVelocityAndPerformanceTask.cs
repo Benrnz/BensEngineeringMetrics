@@ -212,5 +212,5 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         double CapacityAccuracy,
         double PercentOfMaxCapacity);
 
-    private record TeamSprint(TeamConfig Team, int CurrentSprintId) : TeamConfig(Team.TeamName, Team.TeamId, Team.BoardId, Team.MaxCapacity, Team.JiraProject);
+    private record TeamSprint(TeamConfig Team, int CurrentSprintId) : TeamConfig(Team.TeamName, Team.TeamId, Team.BoardId, Team.MaxCapacity, Team.JiraProject, Team.StartDate);
 }
