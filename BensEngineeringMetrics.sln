@@ -8,6 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc Files", "Misc Files", 
 	ProjectSection(SolutionItems) = preProject
 		Run.bat = Run.bat
 		WeeklyReports.bat = WeeklyReports.bat
+		.gitignore = .gitignore
 	EndProjectSection
 EndProject
 Global
