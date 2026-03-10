@@ -17,7 +17,7 @@ public static class JiraConfig
     public static readonly TeamConfig[] Teams =
     [
         new("Superclass", Constants.TeamSuperclass, 419, 40, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12)),
-        new("Phantom", Constants.TeamPhantom, 1176, 10, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12),true),
+        new("Phantom", Constants.TeamPhantom, 1211, 10, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12),true),
         new("RubyDucks", Constants.TeamRubyDucks, 420, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12)),
         new("Spearhead", Constants.TeamSpearhead, 418, 70, Constants.JavPmJiraProjectKey,new DateOnly(2026, 1, 12)),
         new("Officetech", Constants.TeamOfficetech, 483, 45, Constants.OtPmJiraProjectKey, new DateOnly(2026, 1, 12), true),
