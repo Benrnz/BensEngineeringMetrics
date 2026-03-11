@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace BensEngineeringMetrics.Slack;
@@ -150,6 +151,79 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         return messages;
     }
 
+    public async Task<bool> SendMessageToChannel(string channelIdOrName, string text)
+    {
+        if (string.IsNullOrWhiteSpace(channelIdOrName))
+        {
+            throw new ArgumentException("Channel ID or name cannot be null or empty.", nameof(channelIdOrName));
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException("Message text cannot be null or empty.", nameof(text));
+        }
+
+        try
+        {
+            var responseContent = await PostChatMessageAndReadContentAsync(channelIdOrName, text);
+            var (ok, error) = ParseChatPostMessageResponse(responseContent);
+
+            if (ok)
+            {
+                return true;
+            }
+
+            if (error is "not_in_channel" or "channel_not_found")
+            {
+                var resolved = await TryResolveChannelAsync(channelIdOrName);
+                if (resolved is { } r && !r.isPrivate && await JoinChannel(r.channelId, false))
+                {
+                    responseContent = await PostChatMessageAndReadContentAsync(channelIdOrName, text);
+                    (ok, _) = ParseChatPostMessageResponse(responseContent);
+                    if (ok)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                outputter.WriteLine($"Slack chat.postMessage error: {error}");
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            outputter.WriteLine(ex.Message);
+            return false;
+        }
+    }
+
+    private static async Task<string> PostChatMessageAndReadContentAsync(string channelIdOrName, string text)
+    {
+        var payload = new { channel = channelIdOrName, text };
+        var content = JsonContent.Create(payload);
+        var response = await App.HttpSlack.PostAsync($"{BaseApiUrl}chat.postMessage", content);
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    private static (bool ok, string? error) ParseChatPostMessageResponse(string responseContent)
+    {
+        try
+        {
+            var jsonDocument = JsonDocument.Parse(responseContent);
+            var ok = jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean();
+            var error = jsonDocument.RootElement.TryGetProperty("error", out var errorProperty) ? errorProperty.GetString() : null;
+            return (ok, error);
+        }
+        catch
+        {
+            return (false, null);
+        }
+    }
+
     private static async Task<(List<SlackChannel> matchedChannels, int totalChannels)> GetAllSlackChannels(string partialChannelName)
     {
         var matchedChannels = new List<SlackChannel>();
@@ -220,6 +294,116 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         } while (!string.IsNullOrEmpty(cursor));
 
         return (matchedChannels, totalChannels);
+    }
+
+    private static bool LooksLikeChannelId(string channelIdOrName)
+    {
+        if (string.IsNullOrEmpty(channelIdOrName) || channelIdOrName.Length < 8 || channelIdOrName.Length > 15)
+        {
+            return false;
+        }
+
+        var c = channelIdOrName[0];
+        return (c == 'C' || c == 'G') && channelIdOrName.All(char.IsLetterOrDigit);
+    }
+
+    private async Task<(string channelId, bool isPrivate)?> TryResolveChannelAsync(string channelIdOrName)
+    {
+        if (LooksLikeChannelId(channelIdOrName))
+        {
+            try
+            {
+                var url = $"{BaseApiUrl}conversations.info?channel={Uri.EscapeDataString(channelIdOrName)}";
+                var response = await App.HttpSlack.GetAsync(url);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseContent);
+
+                if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean()
+                    && jsonDocument.RootElement.TryGetProperty("channel", out var channelProperty))
+                {
+                    var channelId = channelProperty.TryGetProperty("id", out var idProperty) ? idProperty.GetString() : null;
+                    var isPrivate = channelProperty.TryGetProperty("is_private", out var isPrivateProperty) && isPrivateProperty.GetBoolean();
+                    if (!string.IsNullOrEmpty(channelId))
+                    {
+                        return (channelId, isPrivate);
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to return null
+            }
+
+            return null;
+        }
+
+        var name = channelIdOrName.TrimStart('#');
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return await TryFindChannelByExactNameAsync(name);
+    }
+
+    private static async Task<(string channelId, bool isPrivate)?> TryFindChannelByExactNameAsync(string channelName)
+    {
+        string? cursor = null;
+
+        do
+        {
+            var url = $"{BaseApiUrl}conversations.list?types=public_channel,private_channel&limit=1000&exclude_archived=true";
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                url += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+
+            var response = await App.HttpSlack.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var jsonDocument = JsonDocument.Parse(responseContent);
+
+            if (!jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) || !okProperty.GetBoolean())
+            {
+                return null;
+            }
+
+            if (jsonDocument.RootElement.TryGetProperty("channels", out var channelsProperty))
+            {
+                foreach (var channel in channelsProperty.EnumerateArray())
+                {
+                    if (channel.TryGetProperty("name", out var nameProperty))
+                    {
+                        var name = nameProperty.GetString();
+                        if (string.Equals(name, channelName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var channelId = channel.TryGetProperty("id", out var idProperty) ? idProperty.GetString() : null;
+                            var isPrivate = channel.TryGetProperty("is_private", out var isPrivateProperty) && isPrivateProperty.GetBoolean();
+                            if (!string.IsNullOrEmpty(channelId))
+                            {
+                                return (channelId, isPrivate);
+                            }
+                        }
+                    }
+                }
+            }
+
+            cursor = null;
+            if (jsonDocument.RootElement.TryGetProperty("response_metadata", out var responseMetadataProperty))
+            {
+                if (responseMetadataProperty.TryGetProperty("next_cursor", out var nextCursorProperty))
+                {
+                    var nextCursorValue = nextCursorProperty.GetString();
+                    if (!string.IsNullOrEmpty(nextCursorValue))
+                    {
+                        cursor = nextCursorValue;
+                    }
+                }
+            }
+        } while (!string.IsNullOrEmpty(cursor));
+
+        return null;
     }
 
     private async Task<DateTimeOffset?> GetLastMessageTimestampAsync(string channelId)

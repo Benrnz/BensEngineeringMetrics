@@ -35,4 +35,9 @@ public static class DateUtils
     {
         return new DateTimeOffset(dateTime.Year, dateTime.Month, 1, 0, 0, 0, dateTime.Offset);
     }
+
+    public static DateOnly ToDateOnly(this DateTimeOffset dateTimeOffset)
+    {
+        return new DateOnly(dateTimeOffset.Year, dateTimeOffset.Month, dateTimeOffset.Day);
+    }
 }

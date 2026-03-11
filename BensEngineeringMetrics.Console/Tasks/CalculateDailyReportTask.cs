@@ -3,7 +3,14 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater, IOutputter outputter) : IEngineeringMetricsTask
+public class CalculateDailyReportTask(
+    ICsvExporter exporter,
+    IJiraQueryRunner runner,
+    IWorkSheetReader sheetReader,
+    IWorkSheetUpdater sheetUpdater,
+    IReadableOutputter outputter,
+    ISlackClient slack)
+    : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
@@ -29,49 +36,48 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     {
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.ResetBuffer();
 
         // Superclass team
+        outputter.WriteLine("``` ");
         var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
         var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Phantom team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Ruby Ducks team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Spearhead team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Officetech team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
         jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
         outputter.WriteLine("");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
     }
 
     private async Task CalculateTeamStats(string jql, TeamConfig teamConfig)
@@ -83,7 +89,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             return;
         }
 
-        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d}");
+        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d-MMM-yy}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -103,6 +109,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             {
                 zeroEstimateTickets.Append($"{ticket.Key}, ");
             }
+
             zeroEstimateTickets.Append(").");
         }
 
@@ -160,17 +167,16 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     {
         var sheetData = await sheetReader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
-        if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow[6].ToString(), out var sheetStart))
+        if (headerRow is null || headerRow.Count < 7 || !DateTimeOffset.TryParse(headerRow[6].ToString(), out var sheetStart))
         {
-            outputter.WriteLine("Sheet appears blank or invalid, assuming start of sprint is today...");
+            outputter.WriteLine("Cache Sheet appears blank or invalid, assuming start of sprint is today...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
 
-        if (sheetStart != sprintStart)
+        if (sheetStart.ToDateOnly() != sprintStart.ToDateOnly())
         {
-            outputter.WriteLine($"You have entered a start date for the sprint of {sprintStart:d} but this doesn't match the date in the sheet of {sheetStart:d}.");
-            outputter.WriteLine("Assuming start of sprint is the date provided...");
+            outputter.WriteLine($"Looks like we're starting a new sprint. Sprint start date {sprintStart:d} doesn't match the date in the cache sheet of {sheetStart:d}.");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
@@ -207,15 +213,14 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     private async Task ProcessStartOfSprint(string teamName, DateTimeOffset sprintStart, List<JiraIssue> tickets)
     {
         // Save the list of tickets to Google Drive
-        outputter.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
+        outputter.WriteLine("Resetting sprint story cache...");
         var fileName = $"{Key}_{teamName}";
         exporter.SetFileNameMode(FileNameMode.ExactName, fileName);
-        var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}");
+        var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart}");
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.ClearRange($"{teamName}");
         await sheetUpdater.ImportFile($"'{teamName}'!A1", pathAndFileName);
         await sheetUpdater.SubmitBatch();
-        outputter.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
     private record JiraIssue(
