@@ -78,6 +78,7 @@ public class CalculateDailyReportTask(
 
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
 
+        await slack.SendMessageToChannel("BensTestChannel", outputter.ToString() ?? "No output generated.");
     }
 
     private async Task CalculateTeamStats(string jql, TeamConfig teamConfig)

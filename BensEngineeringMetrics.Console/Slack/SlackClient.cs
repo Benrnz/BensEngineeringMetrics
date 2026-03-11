@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace BensEngineeringMetrics.Slack;
@@ -148,6 +149,46 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         }
 
         return messages;
+    }
+
+    public async Task<bool> SendMessageToChannel(string channelIdOrName, string text)
+    {
+        if (string.IsNullOrWhiteSpace(channelIdOrName))
+        {
+            throw new ArgumentException("Channel ID or name cannot be null or empty.", nameof(channelIdOrName));
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException("Message text cannot be null or empty.", nameof(text));
+        }
+
+        try
+        {
+            var payload = new { channel = channelIdOrName, text };
+            var content = JsonContent.Create(payload);
+            var response = await App.HttpSlack.PostAsync($"{BaseApiUrl}chat.postMessage", content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var jsonDocument = JsonDocument.Parse(responseContent);
+
+            if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean())
+            {
+                return true;
+            }
+
+            if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
+            {
+                var error = errorProperty.GetString();
+                outputter.WriteLine($"Slack chat.postMessage error: {error}");
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            outputter.WriteLine(ex.Message);
+            return false;
+        }
     }
 
     private static async Task<(List<SlackChannel> matchedChannels, int totalChannels)> GetAllSlackChannels(string partialChannelName)
