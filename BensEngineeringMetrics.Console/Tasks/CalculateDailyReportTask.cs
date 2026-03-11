@@ -38,25 +38,40 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             DateTime.TryParse(Console.ReadLine(), out sprintStart);
         }
 
+        outputter.WriteLine("");
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+
         // Superclass team
         var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
         var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team, sprintStart);
+
+        outputter.WriteLine("");
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
 
         // Phantom team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team, sprintStart);
 
+        outputter.WriteLine("");
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+
         // Ruby Ducks team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team, sprintStart);
 
+        outputter.WriteLine("");
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+
         // Spearhead team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team, sprintStart);
+
+        outputter.WriteLine("");
+        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
 
         // Officetech team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
@@ -70,8 +85,6 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     private async Task CalculateTeamStats(string jql, TeamConfig teamConfig, DateTime sprintStart)
     {
         var agileSprint = await runner.GetCurrentSprintForBoard(teamConfig.BoardId);
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
         outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint?.Name}' Start-date: {sprintStart:d}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
