@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
@@ -29,14 +29,6 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     {
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
-        var sprintStart = args.Length > 1 ? DateTime.Parse(args[1]) : DateTime.MinValue;
-        SuggestTwoMostRecentMondays(sprintStart);
-        while (sprintStart == DateTime.MinValue)
-        {
-            outputter.WriteLine("");
-            outputter.WriteLine("Enter the start date of the sprint (dd-MM-yyyy):");
-            DateTime.TryParse(Console.ReadLine(), out sprintStart);
-        }
 
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
@@ -44,7 +36,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Superclass team
         var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
         var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team, sprintStart);
+        await CalculateTeamStats(jql, team);
 
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
@@ -52,7 +44,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Phantom team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team, sprintStart);
+        await CalculateTeamStats(jql, team);
 
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
@@ -60,7 +52,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Ruby Ducks team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team, sprintStart);
+        await CalculateTeamStats(jql, team);
 
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
@@ -68,7 +60,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Spearhead team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team, sprintStart);
+        await CalculateTeamStats(jql, team);
 
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
@@ -76,16 +68,22 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Officetech team
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
         jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team, sprintStart);
+        await CalculateTeamStats(jql, team);
 
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
         outputter.WriteLine("");
     }
 
-    private async Task CalculateTeamStats(string jql, TeamConfig teamConfig, DateTime sprintStart)
+    private async Task CalculateTeamStats(string jql, TeamConfig teamConfig)
     {
         var agileSprint = await runner.GetCurrentSprintForBoard(teamConfig.BoardId);
-        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint?.Name}' Start-date: {sprintStart:d}");
+        if (agileSprint == null)
+        {
+            outputter.WriteLine($"Unable to pull current sprint for {teamConfig.TeamName}.");
+            return;
+        }
+
+        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -119,13 +117,13 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             outputter.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
         }
 
-        if (sprintStart == DateTime.Today)
+        if (agileSprint.StartDate == DateTime.Today)
         {
-            await ProcessStartOfSprint(teamConfig.TeamName, sprintStart, tickets);
+            await ProcessStartOfSprint(teamConfig.TeamName, agileSprint.StartDate, tickets);
         }
         else
         {
-            await ProcessNormalSprintDay(teamConfig.TeamName, sprintStart, tickets);
+            await ProcessNormalSprintDay(teamConfig.TeamName, agileSprint.StartDate, tickets);
         }
     }
 
@@ -158,7 +156,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         );
     }
 
-    private async Task ProcessNormalSprintDay(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
+    private async Task ProcessNormalSprintDay(string teamName, DateTimeOffset sprintStart, List<JiraIssue> tickets)
     {
         var sheetData = await sheetReader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
@@ -206,7 +204,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         }
     }
 
-    private async Task ProcessStartOfSprint(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
+    private async Task ProcessStartOfSprint(string teamName, DateTimeOffset sprintStart, List<JiraIssue> tickets)
     {
         // Save the list of tickets to Google Drive
         outputter.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
@@ -218,18 +216,6 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         await sheetUpdater.ImportFile($"'{teamName}'!A1", pathAndFileName);
         await sheetUpdater.SubmitBatch();
         outputter.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
-    }
-
-    private void SuggestTwoMostRecentMondays(DateTime sprintStart)
-    {
-        if (sprintStart == DateTime.MinValue)
-        {
-            var today = DateTime.Today;
-            var daysSinceMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-            var mostRecentMonday = today.AddDays(-daysSinceMonday);
-            var previousMonday = mostRecentMonday.AddDays(-7);
-            outputter.WriteLine($"Suggested start dates: {mostRecentMonday:dd-MM-yyyy} (most recent Monday) or {previousMonday:dd-MM-yyyy} (previous Monday).");
-        }
     }
 
     private record JiraIssue(
