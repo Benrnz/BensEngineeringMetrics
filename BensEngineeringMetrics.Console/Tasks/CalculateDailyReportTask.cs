@@ -39,34 +39,40 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         }
 
         // Superclass team
-        var jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSuperclass} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, "Superclass", sprintStart);
+        var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
+        var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, team, sprintStart);
 
         // Phantom team
-        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamPhantom} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, "Phantom", sprintStart);
+        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
+        jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, team, sprintStart);
 
         // Ruby Ducks team
-        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamRubyDucks} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, "Ruby Ducks", sprintStart);
+        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
+        jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, team, sprintStart);
 
         // Spearhead team
-        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSpearhead} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, "Spearhead", sprintStart);
+        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
+        jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, team, sprintStart);
 
         // Officetech team
-        jql = """Project = OTPM AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, "Officetech", sprintStart);
+        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
+        jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, team, sprintStart);
 
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
         outputter.WriteLine("");
     }
 
-    private async Task CalculateTeamStats(string jql, string teamName, DateTime sprintStart)
+    private async Task CalculateTeamStats(string jql, TeamConfig teamConfig, DateTime sprintStart)
     {
+        var agileSprint = await runner.GetCurrentSprintForBoard(teamConfig.BoardId);
         outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
-        outputter.WriteLine($"Calculating team sprint stats for {teamName} start date {sprintStart:d}");
+        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint?.Name}' Start-date: {sprintStart:d}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -89,7 +95,6 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             zeroEstimateTickets.Append(").");
         }
 
-        outputter.WriteLine($"{teamName} Team Stats:");
         outputter.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
@@ -103,11 +108,11 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
 
         if (sprintStart == DateTime.Today)
         {
-            await ProcessStartOfSprint(teamName, sprintStart, tickets);
+            await ProcessStartOfSprint(teamConfig.TeamName, sprintStart, tickets);
         }
         else
         {
-            await ProcessNormalSprintDay(teamName, sprintStart, tickets);
+            await ProcessNormalSprintDay(teamConfig.TeamName, sprintStart, tickets);
         }
     }
 
