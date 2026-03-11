@@ -3,7 +3,14 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater, IOutputter outputter) : IEngineeringMetricsTask
+public class CalculateDailyReportTask(
+    ICsvExporter exporter,
+    IJiraQueryRunner runner,
+    IWorkSheetReader sheetReader,
+    IWorkSheetUpdater sheetUpdater,
+    IOutputter outputter,
+    ISlackClient slack)
+    : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
@@ -30,7 +37,6 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
 
-        outputter.WriteLine("");
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
 
         // Superclass team
@@ -71,7 +77,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         await CalculateTeamStats(jql, team);
 
         outputter.WriteLine("---------------------------------------------------------------------------------------------------");
-        outputter.WriteLine("");
+
     }
 
     private async Task CalculateTeamStats(string jql, TeamConfig teamConfig)
