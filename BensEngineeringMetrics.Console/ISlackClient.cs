@@ -14,7 +14,7 @@ public interface ISlackClient
     Task<bool> JoinChannel(string channelId, bool isPrivate);
 
     /// <summary>
-    ///     Post a message to a public Slack channel. The app must already be in the channel (e.g. via JoinChannel).
+    ///     Post a message to a public Slack channel. For public channels, the app will join the channel if needed; for private channels, the app must already be in the channel (e.g. via invite).
     /// </summary>
     /// <param name="channelIdOrName">Channel ID (e.g. C123) or channel name (e.g. #channel-name).</param>
     /// <param name="text">Message text to post.</param>

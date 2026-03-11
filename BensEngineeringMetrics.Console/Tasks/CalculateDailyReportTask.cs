@@ -8,7 +8,7 @@ public class CalculateDailyReportTask(
     IJiraQueryRunner runner,
     IWorkSheetReader sheetReader,
     IWorkSheetUpdater sheetUpdater,
-    IOutputter outputter,
+    IReadableOutputter outputter,
     ISlackClient slack)
     : IEngineeringMetricsTask
 {
@@ -37,46 +37,44 @@ public class CalculateDailyReportTask(
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
 
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
 
         // Superclass team
+        outputter.WriteLine("``` ");
         var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
         var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
+        outputter.WriteLine("``` ");
 
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
 
         // Phantom team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
 
         // Ruby Ducks team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
 
         // Spearhead team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-
-        outputter.WriteLine("");
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("``` ");
 
         // Officetech team
+        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
         jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
+        outputter.WriteLine("``` ");
 
-        outputter.WriteLine("---------------------------------------------------------------------------------------------------");
+        outputter.WriteLine("");
 
         await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ToString() ?? "No output generated.");
     }

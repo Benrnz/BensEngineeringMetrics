@@ -31,6 +31,7 @@ public static class Program
             //services.AddSingleton<IEnvestPmPlanStories, EnvestPmPlanStories>();
             services.AddTransient<IApiClientFactory, JiraApiClientFactory>();
             services.AddTransient<IOutputter, ConsoleOutputter>();
+            services.AddTransient<IReadableOutputter, ConsoleReadableOutputter>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())
