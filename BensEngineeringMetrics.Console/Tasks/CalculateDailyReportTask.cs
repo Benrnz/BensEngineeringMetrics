@@ -44,7 +44,7 @@ public class CalculateDailyReportTask(
         var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
         outputter.WriteLine("``` ");
-
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Phantom team
         outputter.WriteLine("``` ");
@@ -52,6 +52,7 @@ public class CalculateDailyReportTask(
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
         outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Ruby Ducks team
         outputter.WriteLine("``` ");
@@ -59,6 +60,7 @@ public class CalculateDailyReportTask(
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
         outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Spearhead team
         outputter.WriteLine("``` ");
@@ -66,6 +68,7 @@ public class CalculateDailyReportTask(
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
         outputter.WriteLine("``` ");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
 
         // Officetech team
         outputter.WriteLine("``` ");
@@ -73,10 +76,8 @@ public class CalculateDailyReportTask(
         jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
         outputter.WriteLine("``` ");
-
         outputter.WriteLine("");
-
-        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ToString() ?? "No output generated.");
+        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
     }
 
     private async Task CalculateTeamStats(string jql, TeamConfig teamConfig)
@@ -88,7 +89,7 @@ public class CalculateDailyReportTask(
             return;
         }
 
-        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d}");
+        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d-MMM-yy}");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -108,6 +109,7 @@ public class CalculateDailyReportTask(
             {
                 zeroEstimateTickets.Append($"{ticket.Key}, ");
             }
+
             zeroEstimateTickets.Append(").");
         }
 
@@ -165,17 +167,16 @@ public class CalculateDailyReportTask(
     {
         var sheetData = await sheetReader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
-        if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow[6].ToString(), out var sheetStart))
+        if (headerRow is null || headerRow.Count < 7 || !DateTimeOffset.TryParse(headerRow[6].ToString(), out var sheetStart))
         {
-            outputter.WriteLine("Sheet appears blank or invalid, assuming start of sprint is today...");
+            outputter.WriteLine("Cache Sheet appears blank or invalid, assuming start of sprint is today...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
 
-        if (sheetStart != sprintStart)
+        if (sheetStart.ToDateOnly() != sprintStart.ToDateOnly())
         {
-            outputter.WriteLine($"You have entered a start date for the sprint of {sprintStart:d} but this doesn't match the date in the sheet of {sheetStart:d}.");
-            outputter.WriteLine("Assuming start of sprint is the date provided...");
+            outputter.WriteLine($"Looks like we're starting a new sprint. Sprint start date {sprintStart:d} doesn't match the date in the cache sheet of {sheetStart:d}.");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
@@ -212,15 +213,14 @@ public class CalculateDailyReportTask(
     private async Task ProcessStartOfSprint(string teamName, DateTimeOffset sprintStart, List<JiraIssue> tickets)
     {
         // Save the list of tickets to Google Drive
-        outputter.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
+        outputter.WriteLine("Resetting sprint story cache...");
         var fileName = $"{Key}_{teamName}";
         exporter.SetFileNameMode(FileNameMode.ExactName, fileName);
-        var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}");
+        var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart}");
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.ClearRange($"{teamName}");
         await sheetUpdater.ImportFile($"'{teamName}'!A1", pathAndFileName);
         await sheetUpdater.SubmitBatch();
-        outputter.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
     private record JiraIssue(
