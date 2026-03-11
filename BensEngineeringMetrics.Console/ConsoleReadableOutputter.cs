@@ -31,6 +31,11 @@ public class ConsoleReadableOutputter : IReadableOutputter
         return result;
     }
 
+    public void ResetBuffer()
+    {
+        this.buffer.Clear();
+    }
+
     public override string ToString()
     {
         return this.buffer.ToString();

@@ -36,7 +36,7 @@ public class CalculateDailyReportTask(
     {
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
-
+        outputter.ResetBuffer();
 
         // Superclass team
         outputter.WriteLine("``` ");
