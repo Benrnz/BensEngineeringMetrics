@@ -117,14 +117,22 @@ public class CalculateDailyReportTask(
         outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         outputter.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
-        outputter.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
-        outputter.WriteLine($"     - Number of sprint tickets with NO ESTIMATE: {ticketNoEstimate} {zeroEstimateTickets}");
+        if (ticketsFlagged > 0)
+        {
+            outputter.WriteLine($"     - Flags raised: {ticketsFlagged}");
+        }
+
+        if (ticketNoEstimate > 0)
+        {
+            outputter.WriteLine($"     - Tickets with NO ESTIMATE: {ticketNoEstimate} {zeroEstimateTickets}");
+        }
+
         if (p1Bugs > 0 || p2Bugs > 0)
         {
             outputter.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
         }
 
-        if (agileSprint.StartDate == DateTime.Today)
+        if (agileSprint.StartDate.ToDateOnly() == DateTime.Today.ToDateOnly())
         {
             await ProcessStartOfSprint(teamConfig.TeamName, agileSprint.StartDate, tickets);
         }

@@ -40,4 +40,9 @@ public static class DateUtils
     {
         return new DateOnly(dateTimeOffset.Year, dateTimeOffset.Month, dateTimeOffset.Day);
     }
+
+    public static DateOnly ToDateOnly(this DateTime dateTime)
+    {
+        return new DateOnly(dateTime.Year, dateTime.Month, dateTime.Day);
+    }
 }
