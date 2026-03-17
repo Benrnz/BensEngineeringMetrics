@@ -15,7 +15,7 @@ public class CalculateDailyReportTask(
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
     private const string DefaultSlackChannel = "Bens-Test-Channel";
-    private const double TimeLimitInHours = 3.0;
+    private const double TimeLimitInHours = 4.0;
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -75,7 +75,7 @@ public class CalculateDailyReportTask(
             if (await CalculateTeamStats(string.Format(team.Jql, team.Config.TeamId), team.Config))
             {
                 updateCounter++;
-                await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
+                await slack.SendMessageToChannel(team.Config.SlackChannel ?? DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
                 await sheetUpdater.Open(GoogleSheetId);
                 sheetUpdater.EditSheet($"{team.Config.TeamName}!H1", [[DateTimeOffset.Now.ToString("o")]], true);
                 await sheetUpdater.SubmitBatch();

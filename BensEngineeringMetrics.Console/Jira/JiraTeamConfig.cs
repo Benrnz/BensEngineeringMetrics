@@ -26,7 +26,7 @@ public static class JiraConfig
     [
         new("Superclass", Constants.TeamSuperclass, 419, 40, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-superclass"),
         new("Phantom", Constants.TeamPhantom, 1211, 10, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), true, "eng-team-superclass"),
-        new("RubyDucks", Constants.TeamRubyDucks, 420, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-rubyducks"),
+        new("RubyDucks", Constants.TeamRubyDucks, 420, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-ruby-ducks"),
         new("Spearhead", Constants.TeamSpearhead, 418, 70, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-spearhead"),
         new("Officetech", Constants.TeamOfficetech, 483, 45, Constants.OtPmJiraProjectKey, new DateOnly(2026, 1, 12), true, "eng-team-officetech"),
         new("Integration", Constants.TeamIntegration, 450, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12))
