@@ -45,6 +45,8 @@ public interface IWorkSheetUpdater
     /// <param name="userMode">Defaults to false.  If true, data is entered and interpreted by the workbook as if entered by the user.</param>
     void EditSheet(string sheetAndRange, IList<IList<object?>> sourceData, bool userMode = false);
 
+    bool HasOpenTransaction();
+
     Task HideColumn(string sheetName, int column);
 
     /// <summary>

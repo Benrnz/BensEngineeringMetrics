@@ -8,4 +8,16 @@ public record AgileSprint(
     DateTimeOffset EndDate,
     int BoardId,
     string Goal,
-    DateTimeOffset CompleteDate);
+    DateTimeOffset CompleteDate)
+{
+    public static AgileSprint Default =>
+        new(
+            0,
+            string.Empty,
+            string.Empty,
+            DateTimeOffset.MinValue,
+            DateTimeOffset.MinValue,
+            0,
+            string.Empty,
+            DateTimeOffset.MinValue);
+}

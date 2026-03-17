@@ -15,7 +15,7 @@ public class CalculateDailyReportTask(
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
     private const string DefaultSlackChannel = "Bens-Test-Channel";
-    private const double TimeLimitInHours = 4.0;
+    private const double TimeLimitInHours = 3.0;
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -41,52 +41,59 @@ public class CalculateDailyReportTask(
         outputter.ResetBuffer();
         var updateCounter = 0;
 
-        // var myTeams = new List<[
-        //
-        // ];
+        var myTeams = new[]
+        {
+            new
+            {
+                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass),
+                Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
+            },
+            new
+            {
+                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom),
+                Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
+            },
+            new
+            {
+                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks),
+                Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
+            },
+            new
+            {
+                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead),
+                Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
+            },
+            new
+            {
+                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech),
+                Jql = $"Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()"
+            }
+        };
 
-        // Superclass team
-        var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
-        var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        updateCounter += await CalculateTeamStats(jql, team) ? 1 : 0;
-        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
-
-        // Phantom team
-        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
-        jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team);
-        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
-
-        // Ruby Ducks team
-        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
-        jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team);
-        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
-
-        // Spearhead team
-        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
-        jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team);
-        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
-
-        // Officetech team
-        team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
-        jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team);
-        outputter.WriteLine("");
-        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
+        foreach (var team in myTeams)
+        {
+            if (await CalculateTeamStats(string.Format(team.Jql, team.Config.TeamId), team.Config))
+            {
+                updateCounter++;
+                await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
+                await sheetUpdater.Open(GoogleSheetId);
+                sheetUpdater.EditSheet($"{team.Config.TeamName}!H1", [[DateTimeOffset.Now.ToString("o")]], true);
+                await sheetUpdater.SubmitBatch();
+            }
+            else
+            {
+                outputter.ResetBuffer();
+            }
+        }
 
         outputter.WriteLine($"{updateCounter} updates posted to Slack.");
     }
 
     private async Task<bool> CalculateTeamStats(string jql, TeamConfig teamConfig)
     {
-        outputter.ResetBuffer();
         var sheetData = await sheetReader.ReadData($"'{teamConfig.TeamName}'!A1:H1000");
-        if (!await CheckForUpdateRecency(sheetData, teamConfig.TeamName))
-        {
-            return false;
-        }
+        // Check to see if last update was too recent. Avoid spamming slack channels.
+        var update = CheckForUpdateRecency(sheetData, teamConfig.TeamName);
 
         var agileSprint = await runner.GetCurrentSprintForBoard(teamConfig.BoardId);
         if (agileSprint == null)
@@ -95,13 +102,14 @@ public class CalculateDailyReportTask(
             return false;
         }
 
-        outputter.WriteLine($":javln: {teamConfig.TeamName} Team: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d-MMM-yy}");
+        outputter.WriteLine(":javln: Sprint Stats Update :javln:");
+        outputter.WriteLine($"{teamConfig.TeamName} Team: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d-MMM-yy}");
         outputter.Write("``` ");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
-        var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
+        var totalStoryPoints = Math.Round(tickets.Sum(t => t.StoryPoints), 1);
         var remainingTickets = tickets.Count(t => t.Status != Constants.DoneStatus);
-        var remainingStoryPoints = tickets.Where(t => t.Status != Constants.DoneStatus).Sum(t => t.StoryPoints);
+        var remainingStoryPoints = Math.Round(tickets.Where(t => t.Status != Constants.DoneStatus).Sum(t => t.StoryPoints), 1);
         var ticketsInQa = tickets.Count(t => t.Status == Constants.InQaStatus);
         var ticketsInDev = tickets.Count(t => t.Status == Constants.InDevStatus);
         var ticketsFlagged = tickets.Sum(t => t.FlagCount);
@@ -120,7 +128,8 @@ public class CalculateDailyReportTask(
             zeroEstimateTickets.Append(").");
         }
 
-        outputter.WriteLine($"    - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
+        outputter.WriteLine(
+            $"    - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         outputter.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
@@ -149,30 +158,29 @@ public class CalculateDailyReportTask(
         }
 
         outputter.WriteLine("``` ");
-        return true;
-    }
-
-    private async Task<bool> CheckForUpdateRecency(List<List<object>> sheetData, string teamName)
-    {
-        var headerRow = sheetData.FirstOrDefault();
-        bool update;
-        if (headerRow is not null && headerRow.Count < 9 && DateTime.TryParse(headerRow[7].ToString(), out var sheetUpdate))
-        {
-            update = (DateTime.Now - sheetUpdate).TotalHours > TimeLimitInHours;
-        }
-        else
-        {
-            update = true;
-        }
-
-        if (update)
-        {
-            await sheetUpdater.Open(GoogleSheetId);
-            sheetUpdater.EditSheet($"{teamName}!H1", [[DateTimeOffset.Now.ToString("o")]], true);
-            await sheetUpdater.SubmitBatch();
-        }
 
         return update;
+    }
+
+    private bool CheckForUpdateRecency(List<List<object>> sheetData, string teamName)
+    {
+        var headerRow = sheetData.FirstOrDefault();
+        if (headerRow is null)
+        {
+            return true;
+        }
+
+        if (headerRow.Count < 8)
+        {
+            return true;
+        }
+
+        if (DateTime.TryParse(headerRow[7].ToString(), out var sheetUpdate))
+        {
+            return (DateTime.Now - sheetUpdate).TotalHours > TimeLimitInHours;
+        }
+
+        return true;
     }
 
     private JiraIssue CreateJiraIssue(dynamic ticket)

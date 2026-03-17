@@ -262,9 +262,20 @@ public class GoogleSheetUpdater(IOutputter outputter) : IWorkSheetUpdater
         this.pendingApplyDateFormats.Add((sheetName, column, format));
     }
 
-    public async Task SubmitBatch()
+    public bool HasOpenTransaction()
     {
         if (!this.pendingApplyDateFormats.Any() && !this.pendingClears.Any() && !this.pendingDeleteSheetNames.Any() && !this.pendingSpreadsheetRequests.Any() && !this.pendingValueUpdates.Any())
+        {
+            // Nothing to do
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task SubmitBatch()
+    {
+        if (!HasOpenTransaction())
         {
             // Nothing to do
             return;
