@@ -5,8 +5,8 @@ namespace BensEngineeringMetrics.Test;
 
 public class TestOutputter : IOutputter
 {
-    private readonly ITestOutputHelper testOutputHelper;
     private readonly StringBuilder entireLog = new();
+    private readonly ITestOutputHelper testOutputHelper;
 
     public TestOutputter(ITestOutputHelper testOutputHelper)
     {
@@ -15,12 +15,22 @@ public class TestOutputter : IOutputter
 
     public void WriteLine(string? message)
     {
+        if (message == null)
+        {
+            return;
+        }
+
         this.testOutputHelper.WriteLine(message ?? string.Empty);
         this.entireLog.AppendLine(message ?? string.Empty);
     }
 
-    public void WriteLine(object someObject)
+    public void WriteLine(object? someObject)
     {
+        if (someObject == null)
+        {
+            return;
+        }
+
         var message = someObject?.ToString() ?? string.Empty;
         this.testOutputHelper.WriteLine(message);
         this.entireLog.AppendLine(message);
@@ -30,6 +40,23 @@ public class TestOutputter : IOutputter
     {
         this.testOutputHelper.WriteLine(string.Empty);
         this.entireLog.AppendLine(string.Empty);
+    }
+
+    public void Write(string? message)
+    {
+        if (message == null)
+        {
+            return;
+        }
+
+        this.testOutputHelper.WriteLine(message ?? string.Empty);
+        this.entireLog.Append(message ?? string.Empty);
+    }
+
+    public void Write(object? someObject)
+    {
+        this.testOutputHelper.WriteLine(someObject?.ToString());
+        this.entireLog.Append(someObject);
     }
 
     public string GetEntireLog()

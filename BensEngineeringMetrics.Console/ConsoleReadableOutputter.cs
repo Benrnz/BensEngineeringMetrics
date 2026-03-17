@@ -12,16 +12,28 @@ public class ConsoleReadableOutputter : IReadableOutputter
         this.buffer.AppendLine(message);
     }
 
-    public void WriteLine(object someObject)
+    public void WriteLine(object? someObject)
     {
         Console.WriteLine(someObject);
-        this.buffer.AppendLine(someObject.ToString());
+        this.buffer.AppendLine(someObject?.ToString());
     }
 
     public void WriteLine()
     {
         Console.WriteLine();
         this.buffer.AppendLine();
+    }
+
+    public void Write(string? message)
+    {
+        Console.Write(message);
+        this.buffer.Append(message);
+    }
+
+    public void Write(object? someObject)
+    {
+        Console.Write(someObject);
+        this.buffer.Append(someObject);
     }
 
     public string ReadTextAndResetBuffer()

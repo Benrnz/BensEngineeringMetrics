@@ -14,6 +14,8 @@ public class CalculateDailyReportTask(
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
+    private const string DefaultSlackChannel = "Bens-Test-Channel";
+    private const double TimeLimitInHours = 4.0;
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -37,59 +39,64 @@ public class CalculateDailyReportTask(
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
         outputter.ResetBuffer();
+        var updateCounter = 0;
+
+        // var myTeams = new List<[
+        //
+        // ];
 
         // Superclass team
-        outputter.WriteLine("``` ");
         var team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass);
         var jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
-        await CalculateTeamStats(jql, team);
-        outputter.WriteLine("``` ");
-        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
+        updateCounter += await CalculateTeamStats(jql, team) ? 1 : 0;
+        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
 
         // Phantom team
-        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-        outputter.WriteLine("``` ");
-        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
+        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
 
         // Ruby Ducks team
-        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-        outputter.WriteLine("``` ");
-        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
+        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
 
         // Spearhead team
-        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead);
         jql = $"""Project = {Constants.JavPmJiraProjectKey} AND "Team[Team]" = {team.TeamId} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-        outputter.WriteLine("``` ");
-        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
+        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
 
         // Officetech team
-        outputter.WriteLine("``` ");
         team = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech);
         jql = $"""Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, team);
-        outputter.WriteLine("``` ");
         outputter.WriteLine("");
-        await slack.SendMessageToChannel("Bens-Test-Channel", outputter.ReadTextAndResetBuffer() ?? "No output generated.");
+        await slack.SendMessageToChannel(DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
+
+        outputter.WriteLine($"{updateCounter} updates posted to Slack.");
     }
 
-    private async Task CalculateTeamStats(string jql, TeamConfig teamConfig)
+    private async Task<bool> CalculateTeamStats(string jql, TeamConfig teamConfig)
     {
+        outputter.ResetBuffer();
+        var sheetData = await sheetReader.ReadData($"'{teamConfig.TeamName}'!A1:H1000");
+        if (!await CheckForUpdateRecency(sheetData, teamConfig.TeamName))
+        {
+            return false;
+        }
+
         var agileSprint = await runner.GetCurrentSprintForBoard(teamConfig.BoardId);
         if (agileSprint == null)
         {
             outputter.WriteLine($"Unable to pull current sprint for {teamConfig.TeamName}.");
-            return;
+            return false;
         }
 
-        outputter.WriteLine($"{teamConfig.TeamName} Sprint: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d-MMM-yy}");
+        outputter.WriteLine($":javln: {teamConfig.TeamName} Team: '{agileSprint.Name}' Start-date: {agileSprint.StartDate:d-MMM-yy}");
+        outputter.Write("``` ");
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -113,7 +120,7 @@ public class CalculateDailyReportTask(
             zeroEstimateTickets.Append(").");
         }
 
-        outputter.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
+        outputter.WriteLine($"    - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         outputter.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
@@ -138,8 +145,34 @@ public class CalculateDailyReportTask(
         }
         else
         {
-            await ProcessNormalSprintDay(teamConfig.TeamName, agileSprint.StartDate, tickets);
+            await ProcessNormalSprintDay(sheetData, teamConfig.TeamName, agileSprint.StartDate, tickets);
         }
+
+        outputter.WriteLine("``` ");
+        return true;
+    }
+
+    private async Task<bool> CheckForUpdateRecency(List<List<object>> sheetData, string teamName)
+    {
+        var headerRow = sheetData.FirstOrDefault();
+        bool update;
+        if (headerRow is not null && headerRow.Count < 9 && DateTime.TryParse(headerRow[7].ToString(), out var sheetUpdate))
+        {
+            update = (DateTime.Now - sheetUpdate).TotalHours > TimeLimitInHours;
+        }
+        else
+        {
+            update = true;
+        }
+
+        if (update)
+        {
+            await sheetUpdater.Open(GoogleSheetId);
+            sheetUpdater.EditSheet($"{teamName}!H1", [[DateTimeOffset.Now.ToString("o")]], true);
+            await sheetUpdater.SubmitBatch();
+        }
+
+        return update;
     }
 
     private JiraIssue CreateJiraIssue(dynamic ticket)
@@ -171,9 +204,8 @@ public class CalculateDailyReportTask(
         );
     }
 
-    private async Task ProcessNormalSprintDay(string teamName, DateTimeOffset sprintStart, List<JiraIssue> tickets)
+    private async Task ProcessNormalSprintDay(List<List<object>> sheetData, string teamName, DateTimeOffset sprintStart, List<JiraIssue> tickets)
     {
-        var sheetData = await sheetReader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
         if (headerRow is null || headerRow.Count < 7 || !DateTimeOffset.TryParse(headerRow[6].ToString(), out var sheetStart))
         {

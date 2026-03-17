@@ -160,7 +160,7 @@ public class SlackClient(IOutputter outputter) : ISlackClient
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new ArgumentException("Message text cannot be null or empty.", nameof(text));
+            return false;
         }
 
         try
@@ -198,29 +198,6 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         {
             outputter.WriteLine(ex.Message);
             return false;
-        }
-    }
-
-    private static async Task<string> PostChatMessageAndReadContentAsync(string channelIdOrName, string text)
-    {
-        var payload = new { channel = channelIdOrName, text };
-        var content = JsonContent.Create(payload);
-        var response = await App.HttpSlack.PostAsync($"{BaseApiUrl}chat.postMessage", content);
-        return await response.Content.ReadAsStringAsync();
-    }
-
-    private static (bool ok, string? error) ParseChatPostMessageResponse(string responseContent)
-    {
-        try
-        {
-            var jsonDocument = JsonDocument.Parse(responseContent);
-            var ok = jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean();
-            var error = jsonDocument.RootElement.TryGetProperty("error", out var errorProperty) ? errorProperty.GetString() : null;
-            return (ok, error);
-        }
-        catch
-        {
-            return (false, null);
         }
     }
 
@@ -296,6 +273,19 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         return (matchedChannels, totalChannels);
     }
 
+    private async Task<DateTimeOffset?> GetLastMessageTimestampAsync(string channelId)
+    {
+        var messages = (await GetMessages(channelId, 3))
+            .Where(m => m.SubType != SubTypeChannelJoin)
+            .ToList();
+        if (messages.Any())
+        {
+            return messages.First().LastMessageTimestamp;
+        }
+
+        return null;
+    }
+
     private static bool LooksLikeChannelId(string channelIdOrName)
     {
         if (string.IsNullOrEmpty(channelIdOrName) || channelIdOrName.Length < 8 || channelIdOrName.Length > 15)
@@ -307,43 +297,27 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         return (c == 'C' || c == 'G') && channelIdOrName.All(char.IsLetterOrDigit);
     }
 
-    private async Task<(string channelId, bool isPrivate)?> TryResolveChannelAsync(string channelIdOrName)
+    private static (bool ok, string? error) ParseChatPostMessageResponse(string responseContent)
     {
-        if (LooksLikeChannelId(channelIdOrName))
+        try
         {
-            try
-            {
-                var url = $"{BaseApiUrl}conversations.info?channel={Uri.EscapeDataString(channelIdOrName)}";
-                var response = await App.HttpSlack.GetAsync(url);
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var jsonDocument = JsonDocument.Parse(responseContent);
-
-                if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean()
-                    && jsonDocument.RootElement.TryGetProperty("channel", out var channelProperty))
-                {
-                    var channelId = channelProperty.TryGetProperty("id", out var idProperty) ? idProperty.GetString() : null;
-                    var isPrivate = channelProperty.TryGetProperty("is_private", out var isPrivateProperty) && isPrivateProperty.GetBoolean();
-                    if (!string.IsNullOrEmpty(channelId))
-                    {
-                        return (channelId, isPrivate);
-                    }
-                }
-            }
-            catch
-            {
-                // Fall through to return null
-            }
-
-            return null;
+            var jsonDocument = JsonDocument.Parse(responseContent);
+            var ok = jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean();
+            var error = jsonDocument.RootElement.TryGetProperty("error", out var errorProperty) ? errorProperty.GetString() : null;
+            return (ok, error);
         }
-
-        var name = channelIdOrName.TrimStart('#');
-        if (string.IsNullOrWhiteSpace(name))
+        catch
         {
-            return null;
+            return (false, null);
         }
+    }
 
-        return await TryFindChannelByExactNameAsync(name);
+    private static async Task<string> PostChatMessageAndReadContentAsync(string channelIdOrName, string text)
+    {
+        var payload = new { channel = channelIdOrName, text };
+        var content = JsonContent.Create(payload);
+        var response = await App.HttpSlack.PostAsync($"{BaseApiUrl}chat.postMessage", content);
+        return await response.Content.ReadAsStringAsync();
     }
 
     private static async Task<(string channelId, bool isPrivate)?> TryFindChannelByExactNameAsync(string channelName)
@@ -406,16 +380,42 @@ public class SlackClient(IOutputter outputter) : ISlackClient
         return null;
     }
 
-    private async Task<DateTimeOffset?> GetLastMessageTimestampAsync(string channelId)
+    private async Task<(string channelId, bool isPrivate)?> TryResolveChannelAsync(string channelIdOrName)
     {
-        var messages = (await GetMessages(channelId, 3))
-            .Where(m => m.SubType != SubTypeChannelJoin)
-            .ToList();
-        if (messages.Any())
+        if (LooksLikeChannelId(channelIdOrName))
         {
-            return messages.First().LastMessageTimestamp;
+            try
+            {
+                var url = $"{BaseApiUrl}conversations.info?channel={Uri.EscapeDataString(channelIdOrName)}";
+                var response = await App.HttpSlack.GetAsync(url);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseContent);
+
+                if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean()
+                                                                                      && jsonDocument.RootElement.TryGetProperty("channel", out var channelProperty))
+                {
+                    var channelId = channelProperty.TryGetProperty("id", out var idProperty) ? idProperty.GetString() : null;
+                    var isPrivate = channelProperty.TryGetProperty("is_private", out var isPrivateProperty) && isPrivateProperty.GetBoolean();
+                    if (!string.IsNullOrEmpty(channelId))
+                    {
+                        return (channelId, isPrivate);
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to return null
+            }
+
+            return null;
         }
 
-        return null;
+        var name = channelIdOrName.TrimStart('#');
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return await TryFindChannelByExactNameAsync(name);
     }
 }
