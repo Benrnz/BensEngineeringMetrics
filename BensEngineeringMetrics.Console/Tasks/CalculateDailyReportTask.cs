@@ -15,7 +15,7 @@ public class CalculateDailyReportTask(
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
     private const string DefaultSlackChannel = "Bens-Test-Channel";
-    private const double TimeLimitInHours = 4.0;
+    private const double TimeLimitInHours = 8.0;
 
     private static readonly IFieldMapping[] Fields =
     [
