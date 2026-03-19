@@ -3,7 +3,8 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater, IOutputter outputter) : IEngineeringMetricsTask
+public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater, IOutputter outputter)
+    : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1HuI-uYOtR66rs8B0qp8e3L39x13reFTaiOB3VN42vAQ";
     private const string TaskKey = "SPRINT_PERF";
@@ -28,7 +29,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
     private async Task<IReadOnlyList<SprintMetrics>> ExtractAndCalculateSprintMetrics(List<AgileSprint> sprintsOfInterest)
     {
         var sprintMetrics = new List<SprintMetrics>();
-        foreach (var team in JiraConfig.Teams)
+        foreach (var team in JiraTeamConfig.Teams)
         {
             TeamSprint teamSprint;
             if (sprintsOfInterest.Any())
@@ -89,7 +90,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         {
             if (string.IsNullOrEmpty(suggestedSprints))
             {
-                foreach (var team in JiraConfig.Teams)
+                foreach (var team in JiraTeamConfig.Teams)
                 {
                     var sprints = (await runner.GetAllSprints(team.BoardId))
                         .Where(x => x.StartDate <= DateTimeOffset.Now)
@@ -144,10 +145,10 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 
         var contents = result["contents"] ?? throw new NotSupportedException("No contents returned. contents = {JsonObject} JsonObject[14] Explored from API.");
         var ticketsCompletedInitialEstimate = GetValueAsDays(contents["completedIssuesInitialEstimateSum"], teamSprint.Team.UsesStoryPoints);
-        var ticketsCompleted = GetValueAsDays(contents["completedIssuesEstimateSum"],teamSprint.Team.UsesStoryPoints);
-        var ticketsNotCompletedInitial = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"],teamSprint.Team.UsesStoryPoints);
-        var ticketsRemovedInitial = GetValueAsDays(contents["puntedIssuesInitialEstimateSum"],teamSprint.Team.UsesStoryPoints);
-        var ticketsCompletedOutsideSprint = GetValueAsDays(contents["issuesCompletedInAnotherSprintEstimateSum"],teamSprint.Team.UsesStoryPoints);
+        var ticketsCompleted = GetValueAsDays(contents["completedIssuesEstimateSum"], teamSprint.Team.UsesStoryPoints);
+        var ticketsNotCompletedInitial = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"], teamSprint.Team.UsesStoryPoints);
+        var ticketsRemovedInitial = GetValueAsDays(contents["puntedIssuesInitialEstimateSum"], teamSprint.Team.UsesStoryPoints);
+        var ticketsCompletedOutsideSprint = GetValueAsDays(contents["issuesCompletedInAnotherSprintEstimateSum"], teamSprint.Team.UsesStoryPoints);
         var sprint = result["sprint"] ?? throw new NotSupportedException("No sprint returned from API.");
 
         var sprintMetrics = new SprintMetrics(

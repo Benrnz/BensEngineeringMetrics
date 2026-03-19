@@ -20,7 +20,7 @@ public record TeamConfig(
     bool UsesStoryPoints = false,
     string? SlackChannel = null);
 
-public static class JiraConfig
+public static class JiraTeamConfig
 {
     public static readonly TeamConfig[] Teams =
     [
