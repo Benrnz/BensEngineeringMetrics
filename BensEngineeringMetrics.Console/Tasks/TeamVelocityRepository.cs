@@ -69,11 +69,17 @@ public class TeamVelocityRepository(IWorkSheetReader sheetReader) : ITeamVelocit
         string? teamName;
         do
         {
+            if (columnIndex >= data[0].Count)
+            {
+                break;
+            }
+
             // Intentionally cautious about nulls here.  The Google API can return nulls for empty cells even though the API is defined with List<List<object>>.
             teamName = data[0][columnIndex]?.ToString();
             if (string.IsNullOrWhiteSpace(teamName))
             {
                 teamColumnIndex++;
+                columnIndex++;
                 if (columnIndex == 0)
                 {
                     throw new InvalidDataException("There is meant to be a team name in the first column. Sheet is not in the expected format.");
@@ -83,28 +89,15 @@ public class TeamVelocityRepository(IWorkSheetReader sheetReader) : ITeamVelocit
             }
 
             teamColumnIndex = 0;
-            this.teamVelocities.Add(teamName, GetVelocity(data, columnIndex));
-            columnIndex++;
-        } while (string.IsNullOrWhiteSpace(teamName) && teamColumnIndex < 6);
+            var velocity = GetVelocity(data, columnIndex);
+            this.teamVelocities.Add(teamName, velocity);
+            if (teamName.Contains(' '))
+            {
+                this.teamVelocities.Add(teamName.Replace(" ", string.Empty), velocity);
+            }
+
+            columnIndex += 2;
+            teamName = null;
+        } while (string.IsNullOrWhiteSpace(teamName) && teamColumnIndex < 5);
     }
-}
-
-/// <summary>
-///     A repository to store and get team velocity information.  This is intentionally read, rather than calculated each time, as this allows manual control over the velocity target.
-/// </summary>
-public interface ITeamVelocityRepository
-{
-    /// <summary>
-    ///     Get velocity by team id.
-    /// </summary>
-    /// <param name="teamId">For example: '1a05d236-1562-4e58-ae88-1ffc6c5edb32'</param>
-    /// <returns>A double number to represent story points per sprint.  Or Null if the team id is not found.</returns>
-    Task<double?> LookUpTeamVelocityById(string teamId);
-
-    /// <summary>
-    ///     Get velocity by team name.
-    /// </summary>
-    /// <param name="teamName">For example: 'Superclass'</param>
-    /// <returns>A double number to represent story points per sprint.  Or Null if the team name is not found.</returns>
-    Task<double?> LookUpTeamVelocityByName(string teamName);
 }

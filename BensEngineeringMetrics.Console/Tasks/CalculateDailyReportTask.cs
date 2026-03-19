@@ -9,7 +9,8 @@ public class CalculateDailyReportTask(
     IWorkSheetReader sheetReader,
     IWorkSheetUpdater sheetUpdater,
     IReadableOutputter outputter,
-    ISlackClient slack)
+    ISlackClient slack,
+    ITeamVelocityRepository velocityReppo)
     : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
@@ -75,7 +76,12 @@ public class CalculateDailyReportTask(
             if (await CalculateTeamStats(string.Format(team.Jql, team.Config.TeamId), team.Config))
             {
                 updateCounter++;
-                await slack.SendMessageToChannel(team.Config.SlackChannel ?? DefaultSlackChannel, outputter.ReadTextAndResetBuffer());
+                var message = outputter.ReadTextAndResetBuffer();
+                if (!string.IsNullOrWhiteSpace(team.Config.SlackChannel))
+                {
+                    await slack.SendMessageToChannel(team.Config.SlackChannel, message);
+                }
+                await slack.SendMessageToChannel(DefaultSlackChannel, message);
                 await sheetUpdater.Open(GoogleSheetId);
                 sheetUpdater.EditSheet($"{team.Config.TeamName}!H1", [[DateTimeOffset.Now.ToString("o")]], true);
                 await sheetUpdater.SubmitBatch();
@@ -116,6 +122,7 @@ public class CalculateDailyReportTask(
         var p1Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityCritical, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         var p2Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityMajor, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         var ticketNoEstimate = tickets.Count(t => t.Type is Constants.StoryType or Constants.BugType or Constants.ImprovementType or Constants.SchemaTaskType && t.StoryPoints == 0);
+        var teamVelocity = await velocityReppo.LookUpTeamVelocityByName(teamConfig.TeamName);
         var zeroEstimateTickets = new StringBuilder();
         if (ticketNoEstimate > 0)
         {
@@ -132,6 +139,8 @@ public class CalculateDailyReportTask(
             $"    - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
+        var velocityMessage = totalStoryPoints > teamVelocity * 1.1 ? "SPRINT IS OVERLOADED" : string.Empty;
+        outputter.WriteLine($"Team Velocity is: {teamVelocity}. {velocityMessage}");
         outputter.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         if (ticketsFlagged > 0)
         {
