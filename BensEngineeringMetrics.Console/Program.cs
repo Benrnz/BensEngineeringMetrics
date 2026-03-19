@@ -28,7 +28,7 @@ public static class Program
             services.AddTransient<ISheetPieChart, GooglePieChart>();
             services.AddSingleton<IJiraIssueRepository, JiraIssueRepository>();
             services.AddSingleton<IJsonToJiraBasicTypeMapper, JsonToJiraBasicTypeMapper>();
-            //services.AddSingleton<IEnvestPmPlanStories, EnvestPmPlanStories>();
+            services.AddSingleton<ITeamVelocityRepository, TeamVelocityRepository>();
             services.AddTransient<IApiClientFactory, JiraApiClientFactory>();
             services.AddTransient<IOutputter, ConsoleOutputter>();
             services.AddTransient<IReadableOutputter, ConsoleReadableOutputter>();

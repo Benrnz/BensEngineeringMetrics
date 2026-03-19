@@ -45,27 +45,27 @@ public class CalculateDailyReportTask(
         {
             new
             {
-                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass),
+                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass),
                 Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
             },
             new
             {
-                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom),
+                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamPhantom),
                 Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
             },
             new
             {
-                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks),
+                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks),
                 Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
             },
             new
             {
-                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead),
+                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead),
                 Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
             },
             new
             {
-                Config = JiraConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech),
+                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamOfficetech),
                 Jql = $"Project = {Constants.OtPmJiraProjectKey} AND Sprint IN openSprints()"
             }
         };

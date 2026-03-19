@@ -21,7 +21,7 @@ public class TeamVelocityCalculator(IJiraQueryRunner runner, IGreenHopperClient 
         var teamData = new List<TeamSprintMetrics>();
         var totalStoryPointsAllTeams = new double[4];
 
-        foreach (var team in JiraConfig.Teams.Where(t => t.JiraProject == project))
+        foreach (var team in JiraTeamConfig.Teams.Where(t => t.JiraProject == project))
         {
             var last5Sprints = (await runner.GetAllSprints(team.BoardId))
                 .Where(t => t.State == Constants.SprintStateClosed)
