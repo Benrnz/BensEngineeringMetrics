@@ -1,4 +1,5 @@
 using System.Text;
+using BensEngineeringMetrics.Slack;
 
 namespace BensEngineeringMetrics;
 
@@ -8,7 +9,7 @@ public class ConsoleReadableOutputter : IReadableOutputter
 
     public void WriteLine(string? message)
     {
-        Console.WriteLine(message);
+        Console.WriteLine(SlackStringUtils.RemoveSlackSpecialCharacters(message));
         this.buffer.AppendLine(message);
     }
 
@@ -26,7 +27,7 @@ public class ConsoleReadableOutputter : IReadableOutputter
 
     public void Write(string? message)
     {
-        Console.Write(message);
+        Console.Write(SlackStringUtils.RemoveSlackSpecialCharacters(message));
         this.buffer.Append(message);
     }
 

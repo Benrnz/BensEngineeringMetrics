@@ -1,3 +1,5 @@
+using BensEngineeringMetrics.Slack;
+
 namespace BensEngineeringMetrics;
 
 public class ConsoleOutputter : IOutputter
@@ -9,7 +11,7 @@ public class ConsoleOutputter : IOutputter
 
     public void Write(string? message)
     {
-        Console.Write(message);
+        Console.Write(SlackStringUtils.RemoveSlackSpecialCharacters(message));
     }
 
     public void Write(object? someObject)
@@ -24,7 +26,12 @@ public class ConsoleOutputter : IOutputter
 
     public void WriteLine(string? message)
     {
-        Console.WriteLine(message);
+        if (message is null)
+        {
+            return;
+        }
+
+        Console.WriteLine(SlackStringUtils.RemoveSlackSpecialCharacters(message));
     }
 
     public void WriteLine(object? someObject)
