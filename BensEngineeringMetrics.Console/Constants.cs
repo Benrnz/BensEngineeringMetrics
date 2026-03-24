@@ -21,6 +21,7 @@ public static class Constants
     public const string JavPmJiraProjectKey = "JAVPM";
     public const string OtDoJiraProjectKey = "OTDO";
     public const string OtPmJiraProjectKey = "OTPM";
+    public const string NoSprint = "No Sprint";
     public const string ProductInitiativeType = "Product Initiative";
     public const string SchemaTaskType = "Schema Task";
     public const string SeverityCritical = "Critical";

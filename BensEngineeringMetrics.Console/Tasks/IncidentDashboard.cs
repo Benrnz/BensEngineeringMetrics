@@ -3,13 +3,19 @@ using BensEngineeringMetrics.Slack;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient, IOutputter outputter) : IEngineeringMetricsTask
+public class IncidentDashboard(
+    IJiraQueryRunner runner,
+    IWorkSheetUpdater sheetUpdater,
+    ISlackClient slack,
+    IGreenHopperClient greenHopperClient,
+    IOutputter outputter,
+    ICsvExporter exporter)
+    : IEngineeringMetricsTask
 {
     private const string TaskKey = "INCIDENTS";
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
     private const string OtPmGoogleSheetId = "14Dqa1UVXQJrAViBHgbS8kHBmHi61HnkZAKa6wCsTL2E";
     private const string GoogleSheetTabName = "Open Incidents Dashboard";
-    private const string NoSprintAssigned = "No Sprint";
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -23,15 +29,26 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         JiraFields.UpdatedDate
     ];
 
+    private readonly ICsvExporter exporter = exporter;
     private IReadOnlyList<SlackChannel> incidentSlackChannels = new List<SlackChannel>();
 
+    private string integrationTeam = string.Empty;
+    private string rubyDucksTeam = string.Empty;
+
     private List<IList<object?>> sheetData = new();
+    private string spearheadTeam = string.Empty;
+    private string superclassTeam = string.Empty;
 
     public string Description => "Pulls data from Jira and Slack to give a combined view of all open incidents.";
     public string Key => TaskKey;
 
     public async Task ExecuteAsync(string[] args)
     {
+        this.spearheadTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead).JiraName;
+        this.rubyDucksTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks).JiraName;
+        this.superclassTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass).JiraName;
+        this.integrationTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamIntegration).JiraName;
+
         outputter.WriteLine("Updating Incident Dashboard for JAVPM...");
         await BuildAllTablesForProject(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
         outputter.WriteLine("Updating Incident Dashboard for OTPM...");
@@ -62,20 +79,34 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         outputter.WriteLine("Creating table for open ticket summary...");
 
         // Row 1
-        this.sheetData.Add([null, "Number of P1s", "Number of P2s"]);
-        sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
+        this.sheetData.Add([null, "Number of P1s", "Number of P2s", "Spearhead", "Superclass", "Ruby Ducks", "Integration"]);
+        sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
+
         // Row 2
         this.sheetData.Add([
             "Total Open Tickets:",
             jiraIssues.Count(i => i.Severity == Constants.SeverityCritical),
-            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor)
+            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam)
         ]);
         sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 1);
+
         // Row 3
         this.sheetData.Add([
             "In Sprint:",
-            jiraIssues.Count(i => i.Severity == Constants.SeverityCritical && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != NoSprintAssigned),
-            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != NoSprintAssigned)
+            jiraIssues.Count(i => i.Severity == Constants.SeverityCritical && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            jiraIssues.Count(i =>
+                i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            jiraIssues.Count(i =>
+                i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            jiraIssues.Count(i =>
+                i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            jiraIssues.Count(i =>
+                i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint)
         ]);
 
         // Group by customer
@@ -86,19 +117,25 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
             var p1Issues = group.Count(i => i.Severity == Constants.SeverityCritical);
             var p2Issues = group.Count(i => i.Severity == Constants.SeverityMajor);
+            var spearheadIssues = group.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam);
+            var superclassIssues = group.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam);
+            var rubyDucksIssues = group.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam);
+            var integrationIssues = group.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam);
             if (p1Issues == 0 && p2Issues == 0)
             {
                 continue;
             }
 
-            customerTickets.Add(new CustomerTickets(customer, p1Issues, p2Issues, group.ToArray()));
+            customerTickets.Add(new CustomerTickets(customer, p1Issues, p2Issues, spearheadIssues, superclassIssues, rubyDucksIssues, integrationIssues));
         }
 
         // Row 4+
         var rank = 1;
         foreach (var customer in customerTickets.OrderByDescending(c => c.P1Count).ThenByDescending(c => c.P2Count))
         {
-            this.sheetData.Add([$"{rank++}) {customer.CustomerName}", customer.P1Count, customer.P2Count]);
+            this.sheetData.Add([
+                $"{rank++}) {customer.CustomerName}", customer.P1Count, customer.P2Count, customer.SpearheadCount, customer.SuperclassCount, customer.RubyDucksCount, customer.IntegrationCount
+            ]);
             if (rank > 5)
             {
                 break;
@@ -175,9 +212,12 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     {
         var jql =
             $"project = \"{project}\" AND issueType = Bug AND status != Done AND (\"Customer/s (Multi Select)[Select List (multiple choices)]\" != JAVLN OR \"Customer/s (Multi Select)[Select List (multiple choices)]\" IS EMPTY)";
-        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
+        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
-        return issues.ToList();
+        this.exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}");
+        this.exporter.Export(issues);
+
+        return issues;
     }
 
     private void SetLastUpdateTime()
@@ -248,7 +288,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
             return new JiraIssue(
                 Key: JiraFields.Key.Parse(d),
                 Summary: JiraFields.Summary.Parse(d),
-                Sprint: string.IsNullOrWhiteSpace(sprint) ? NoSprintAssigned : sprint,
+                Sprint: string.IsNullOrWhiteSpace(sprint) ? Constants.NoSprint : sprint,
                 Customers: customer,
                 CustomerArray: customer.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 Severity: JiraFields.Severity.Parse(d) ?? string.Empty,
@@ -259,5 +299,12 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         }
     }
 
-    private record CustomerTickets(string CustomerName, int P1Count, int P2Count, JiraIssue[] Tickets);
+    private record CustomerTickets(
+        string CustomerName,
+        int P1Count,
+        int P2Count,
+        int SpearheadCount,
+        int SuperclassCount,
+        int RubyDucksCount,
+        int IntegrationCount);
 }

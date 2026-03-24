@@ -301,7 +301,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         public JiraIssue(dynamic issue)
         {
             Key = JiraFields.Key.Parse(issue);
-            Sprint = JiraFields.Sprint.Parse(issue) ?? "No Sprint";
+            Sprint = JiraFields.Sprint.Parse(issue) ?? Constants.NoSprint;
             SprintStartDate = JiraFields.SprintStartDate.Parse(issue);
             Team = JiraFields.Team.Parse(issue) ?? "No Team";
             StoryPoints = JiraFields.StoryPoints.Parse(issue) ?? 0.0;
