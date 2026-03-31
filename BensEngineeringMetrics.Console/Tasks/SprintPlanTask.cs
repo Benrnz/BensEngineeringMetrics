@@ -234,7 +234,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
             var doneSprintTickets = row.SprintTickets.Where(t => t.Status == Constants.DoneStatus).Sum(t => t.StoryPoints);
             // Don't count work just done during this sprint - data should be as at start of sprint.
-            var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
+            var runningTotalWorkDone = pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets ?? 0.0;
             var ticketsWithNoEstimate = row.SprintTickets.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
