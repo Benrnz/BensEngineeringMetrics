@@ -195,7 +195,8 @@ public class IncidentDashboard(
                     Age: Math.Round(daysAgo, 1),
                     Link: $"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")",
                     Status: status ?? Constants.Unknown,
-                    JiraKey: ticketKey ?? Constants.Unknown
+                    JiraKey: ticketKey ?? Constants.Unknown,
+                    Severity: Constants.Unknown
                 ));
             }
 
@@ -204,11 +205,12 @@ public class IncidentDashboard(
                 .Select(c => c.JiraKey)
                 .ToArray());
 
-            var jiras = (await runner.SearchJiraIssuesWithJqlAsync($"key IN ({jiraKeys})", [JiraFields.Status]))
+            var jiras = (await runner.SearchJiraIssuesWithJqlAsync($"key IN ({jiraKeys})", [JiraFields.Status, JiraFields.Severity]))
                 .Select(d => new
                 {
                     Key = (string)JiraFields.Key.Parse(d),
-                    Status = (string)JiraFields.Status.Parse(d)
+                    Status = (string)JiraFields.Status.Parse(d),
+                    Severity = (string)JiraFields.Severity.Parse(d)
                 })
                 .ToList();
 
@@ -216,22 +218,22 @@ public class IncidentDashboard(
             {
                 var matchingJira = jiras.FirstOrDefault(j => j.Key == channel.JiraKey);
                 channel.Status = matchingJira?.Status ?? Constants.Unknown;
+                channel.Severity = matchingJira?.Severity ?? Constants.Unknown;
             }
         }
 
-        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)", "Status"]);
-        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 4);
-        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open", null, null, null]);
+        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)", "Status", "Severity"]);
+        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 5);
+        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open", null, null, null, null]);
 
         foreach (var channel in this.incidentSlackChannels.OrderByDescending(c => c.Age))
         {
-            this.sheetData.Add([channel.Link, null, channel.Age, channel.Status]);
+            this.sheetData.Add([channel.Link, null, channel.Age, channel.Status, channel.Severity]);
         }
 
         this.sheetData.Add([]);
         this.sheetData.Add([]);
     }
-
 
     private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
     {
@@ -362,8 +364,9 @@ public class IncidentDashboard(
         int RubyDucksCount,
         int IntegrationCount);
 
-    private record SlackChannelSummary(string Name, string Link, double Age, string JiraKey, string Status)
+    private record SlackChannelSummary(string Name, string Link, double Age, string JiraKey, string Status, string Severity)
     {
         public string Status { get; set; } = Status;
+        public string Severity { get; set; } = Severity;
     }
 }
