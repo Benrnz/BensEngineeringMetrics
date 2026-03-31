@@ -1,5 +1,5 @@
-﻿using BensEngineeringMetrics.Jira;
-using BensEngineeringMetrics.Slack;
+using System.Text.RegularExpressions;
+using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
@@ -29,8 +29,7 @@ public class IncidentDashboard(
         JiraFields.UpdatedDate
     ];
 
-    private readonly ICsvExporter exporter = exporter;
-    private IReadOnlyList<SlackChannel> incidentSlackChannels = new List<SlackChannel>();
+    private readonly IList<SlackChannelSummary> incidentSlackChannels = new List<SlackChannelSummary>();
 
     private string integrationTeam = string.Empty;
     private string rubyDucksTeam = string.Empty;
@@ -66,7 +65,7 @@ public class IncidentDashboard(
         var jiraIssues = await RetrieveJiraData(project);
         CreateTableForOpenTicketSummary(jiraIssues);
         await TeamVelocityTable(project);
-        await CreateTableForSlackChannels(jiraIssues);
+        await CreateTableForSlackChannels();
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
 
@@ -169,29 +168,63 @@ public class IncidentDashboard(
         this.sheetData.Add([]);
     }
 
-    private async Task CreateTableForSlackChannels(IReadOnlyList<JiraIssue> jiraIssues)
+    private async Task CreateTableForSlackChannels()
     {
         outputter.WriteLine("Creating table for Slack Channel Incidents...");
         if (!this.incidentSlackChannels.Any())
         {
-            this.incidentSlackChannels = await slack.FindAllChannels("incident-");
+            var channels = await slack.FindAllChannels("incident-");
+            var ticketRegex = new Regex(@"\b(JAVPM|OTPM)-\d+\b", RegexOptions.IgnoreCase);
+            foreach (var channel in channels)
+            {
+                var daysAgo = channel.LastMessageTimestamp.HasValue
+                    ? (DateTimeOffset.Now - channel.LastMessageTimestamp.Value).TotalDays
+                    : 0;
+                string? status = null;
+                string? ticketKey = null;
+                var match = ticketRegex.Match(channel.Name);
+                if (match.Success)
+                {
+                    ticketKey = match.Value.ToUpperInvariant();
+                }
+
+                this.incidentSlackChannels.Add(new SlackChannelSummary
+                (
+                    channel.Name,
+                    Age: Math.Round(daysAgo, 1),
+                    Link: $"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")",
+                    Status: status ?? Constants.Unknown,
+                    JiraKey: ticketKey ?? Constants.Unknown
+                ));
+            }
+
+            var jiraKeys = string.Join(", ", this.incidentSlackChannels
+                .Where(c => c.JiraKey != Constants.Unknown)
+                .Select(c => c.JiraKey)
+                .ToArray());
+
+            var jiras = (await runner.SearchJiraIssuesWithJqlAsync($"key IN ({jiraKeys})", [JiraFields.Status]))
+                .Select(d => new
+                {
+                    Key = (string)JiraFields.Key.Parse(d),
+                    Status = (string)JiraFields.Status.Parse(d)
+                })
+                .ToList();
+
+            foreach (var channel in this.incidentSlackChannels.Where(c => c.JiraKey != Constants.Unknown))
+            {
+                var matchingJira = jiras.FirstOrDefault(j => j.Key == channel.JiraKey);
+                channel.Status = matchingJira?.Status ?? Constants.Unknown;
+            }
         }
 
-        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)"]);
-        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
-        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open"]);
-        var channelsSortByAge = new List<(string, double)>();
-        foreach (var channel in this.incidentSlackChannels)
-        {
-            var daysAgo = channel.LastMessageTimestamp.HasValue
-                ? (DateTimeOffset.Now - channel.LastMessageTimestamp.Value).TotalDays
-                : 0;
-            channelsSortByAge.Add(($"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", Math.Round(daysAgo, 1)));
-        }
+        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)", "Status"]);
+        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 4);
+        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open", null, null, null]);
 
-        foreach (var channel in channelsSortByAge.OrderByDescending(c => c.Item2))
+        foreach (var channel in this.incidentSlackChannels.OrderByDescending(c => c.Age))
         {
-            this.sheetData.Add([channel.Item1, null, channel.Item2]);
+            this.sheetData.Add([channel.Link, null, channel.Age, channel.Status]);
         }
 
         this.sheetData.Add([]);
@@ -214,8 +247,8 @@ public class IncidentDashboard(
             $"project = \"{project}\" AND issueType = Bug AND status != Done AND (\"Customer/s (Multi Select)[Select List (multiple choices)]\" != JAVLN OR \"Customer/s (Multi Select)[Select List (multiple choices)]\" IS EMPTY)";
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
-        this.exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}");
-        this.exporter.Export(issues);
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}");
+        exporter.Export(issues);
 
         return issues;
     }
@@ -307,4 +340,9 @@ public class IncidentDashboard(
         int SuperclassCount,
         int RubyDucksCount,
         int IntegrationCount);
+
+    private record SlackChannelSummary(string Name, string Link, double Age, string JiraKey, string Status)
+    {
+        public string Status { get; set; } = Status;
+    }
 }
