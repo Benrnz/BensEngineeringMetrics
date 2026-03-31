@@ -63,7 +63,8 @@ public class IncidentDashboard(
 
         SetLastUpdateTime();
         var jiraIssues = await RetrieveJiraData(project);
-        CreateTableForOpenTicketSummary(jiraIssues);
+        var activeSprint = await RetrieveActiveSprintTickets(project);
+        CreateTableForOpenTicketSummary(jiraIssues, activeSprint);
         await TeamVelocityTable(project);
         await CreateTableForSlackChannels();
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
@@ -73,27 +74,27 @@ public class IncidentDashboard(
         await sheetUpdater.SubmitBatch();
     }
 
-    private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
+    private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues, IReadOnlyList<JiraIssue> activeSprint)
     {
         outputter.WriteLine("Creating table for open ticket summary...");
 
-        // Row 1
+        // Row 1 - Headings Row
         this.sheetData.Add([null, "Number of P1s", "Number of P2s", "Spearhead", "Superclass", "Ruby Ducks", "Integration"]);
         sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
-        // Row 2
+        // Row 2 - Active Sprint tickets row
         this.sheetData.Add([
-            "Total Open Tickets:",
-            jiraIssues.Count(i => i.Severity == Constants.SeverityCritical),
-            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor),
-            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam),
-            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam),
-            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam),
-            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam)
+            "Active Sprint Tickets:",
+            activeSprint.Count(i => i.Severity == Constants.SeverityCritical),
+            activeSprint.Count(i => i.Severity == Constants.SeverityMajor),
+            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam),
+            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam),
+            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam),
+            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam)
         ]);
         sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 1);
 
-        // Row 3
+        // Row 3 -
         this.sheetData.Add([
             "In Sprint:",
             jiraIssues.Count(i => i.Severity == Constants.SeverityCritical && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
@@ -241,10 +242,30 @@ public class IncidentDashboard(
             .OrderBy(c => c);
     }
 
+    private async Task<IReadOnlyList<JiraIssue>> RetrieveActiveSprintTickets(string project)
+    {
+        var jql = $"""
+                   project = "{project}"
+                   AND issueType = Bug
+                   AND sprint in openSprints()
+                   AND ("Customer/s (Multi Select)[Select List (multiple choices)]" != JAVLN OR "Customer/s (Multi Select)[Select List (multiple choices)]" IS EMPTY)
+                   """;
+        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
+
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}");
+        exporter.Export(issues);
+
+        return issues;
+    }
+
     private async Task<IReadOnlyList<JiraIssue>> RetrieveJiraData(string project)
     {
-        var jql =
-            $"project = \"{project}\" AND issueType = Bug AND status != Done AND (\"Customer/s (Multi Select)[Select List (multiple choices)]\" != JAVLN OR \"Customer/s (Multi Select)[Select List (multiple choices)]\" IS EMPTY)";
+        var jql = $"""
+                   project = "{project}"
+                   AND issueType = Bug
+                   AND status != Done
+                   AND ("Customer/s (Multi Select)[Select List (multiple choices)]" != JAVLN OR "Customer/s (Multi Select)[Select List (multiple choices)]" IS EMPTY)
+                   """;
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue).ToList();
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}");
