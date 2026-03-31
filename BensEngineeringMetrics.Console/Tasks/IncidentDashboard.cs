@@ -84,28 +84,28 @@ public class IncidentDashboard(
 
         // Row 2 - Active Sprint tickets row
         this.sheetData.Add([
-            "Active Sprint Tickets:",
-            activeSprint.Count(i => i.Severity == Constants.SeverityCritical),
-            activeSprint.Count(i => i.Severity == Constants.SeverityMajor),
-            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam),
-            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam),
-            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam),
-            activeSprint.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam)
+            "Total Open Tickets:",
+            jiraIssues.Count(i => i.Severity == Constants.SeverityCritical),
+            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam),
+            jiraIssues.Count(i => i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam)
         ]);
         sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 1);
 
         // Row 3 -
         this.sheetData.Add([
             "In Sprint:",
-            jiraIssues.Count(i => i.Severity == Constants.SeverityCritical && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
-            jiraIssues.Count(i => i.Severity == Constants.SeverityMajor && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
-            jiraIssues.Count(i =>
+            activeSprint.Count(i => i.Severity == Constants.SeverityCritical && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            activeSprint.Count(i => i.Severity == Constants.SeverityMajor && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
+            activeSprint.Count(i =>
                 i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.spearheadTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
-            jiraIssues.Count(i =>
+            activeSprint.Count(i =>
                 i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.superclassTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
-            jiraIssues.Count(i =>
+            activeSprint.Count(i =>
                 i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.rubyDucksTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint),
-            jiraIssues.Count(i =>
+            activeSprint.Count(i =>
                 i.Severity is Constants.SeverityCritical or Constants.SeverityMajor && i.Team == this.integrationTeam && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != Constants.NoSprint)
         ]);
 
