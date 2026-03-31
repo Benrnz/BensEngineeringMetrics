@@ -66,7 +66,7 @@ public class IncidentDashboard(
         var jiraIssues = await RetrieveJiraData(project);
         CreateTableForOpenTicketSummary(jiraIssues);
         await TeamVelocityTable(project);
-        await CreateTableForSlackChannels();
+        await CreateTableForSlackChannels(jiraIssues);
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
 
@@ -169,7 +169,7 @@ public class IncidentDashboard(
         this.sheetData.Add([]);
     }
 
-    private async Task CreateTableForSlackChannels()
+    private async Task CreateTableForSlackChannels(IReadOnlyList<JiraIssue> jiraIssues)
     {
         outputter.WriteLine("Creating table for Slack Channel Incidents...");
         if (!this.incidentSlackChannels.Any())
