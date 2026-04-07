@@ -81,6 +81,7 @@ public class CalculateDailyReportTask(
                 {
                     await slack.SendMessageToChannel(team.Config.SlackChannel, message);
                 }
+
                 await slack.SendMessageToChannel(DefaultSlackChannel, message);
                 await sheetUpdater.Open(GoogleSheetId);
                 sheetUpdater.EditSheet($"{team.Config.TeamName}!H1", [[DateTimeOffset.Now.ToString("o")]], true);
@@ -88,7 +89,9 @@ public class CalculateDailyReportTask(
             }
             else
             {
-                outputter.ResetBuffer();
+                // Always output to default channel for every run.
+                var message = outputter.ReadTextAndResetBuffer();
+                await slack.SendMessageToChannel(DefaultSlackChannel, message);
             }
         }
 

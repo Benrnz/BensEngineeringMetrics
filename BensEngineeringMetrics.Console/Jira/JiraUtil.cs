@@ -15,6 +15,11 @@ public static class JiraUtil
     /// </summary>
     public static string HyperlinkTicket(string ticketKey)
     {
+        if (ticketKey == Constants.Unknown)
+        {
+            return string.Empty;
+        }
+
         return $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{ticketKey}\", \"{ticketKey}\")";
     }
 }

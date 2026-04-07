@@ -222,13 +222,13 @@ public class IncidentDashboard(
             }
         }
 
-        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)", "Status", "Severity"]);
-        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 5);
-        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open", null, null, null, null]);
+        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)", "Status", "Severity", "Ticket"]);
+        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
+        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open", null, null, null, null, null]);
 
         foreach (var channel in this.incidentSlackChannels.OrderByDescending(c => c.Age))
         {
-            this.sheetData.Add([channel.Link, null, channel.Age, channel.Status, channel.Severity]);
+            this.sheetData.Add([channel.Link, null, channel.Age, channel.Status, channel.Severity, JiraUtil.HyperlinkTicket(channel.JiraKey)]);
         }
 
         this.sheetData.Add([]);
@@ -366,7 +366,7 @@ public class IncidentDashboard(
 
     private record SlackChannelSummary(string Name, string Link, double Age, string JiraKey, string Status, string Severity)
     {
-        public string Status { get; set; } = Status;
         public string Severity { get; set; } = Severity;
+        public string Status { get; set; } = Status;
     }
 }
