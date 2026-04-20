@@ -56,7 +56,7 @@ public class CalculateDailyReportTask(
             },
             new
             {
-                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks),
+                Config = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamWizards),
                 Jql = $"Project = {Constants.JavPmJiraProjectKey} AND \"Team[Team]\" = {{0}} AND Sprint IN openSprints()"
             },
             new

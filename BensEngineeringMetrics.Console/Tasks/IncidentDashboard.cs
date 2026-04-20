@@ -44,7 +44,7 @@ public class IncidentDashboard(
     public async Task ExecuteAsync(string[] args)
     {
         this.spearheadTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamSpearhead).JiraName;
-        this.rubyDucksTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamRubyDucks).JiraName;
+        this.rubyDucksTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamWizards).JiraName;
         this.superclassTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamSuperclass).JiraName;
         this.integrationTeam = JiraTeamConfig.Teams.Single(t => t.TeamId == Constants.TeamIntegration).JiraName;
 
