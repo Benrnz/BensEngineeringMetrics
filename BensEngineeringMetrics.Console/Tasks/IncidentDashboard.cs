@@ -79,7 +79,7 @@ public class IncidentDashboard(
         outputter.WriteLine("Creating table for open ticket summary...");
 
         // Row 1 - Headings Row
-        this.sheetData.Add([null, "Number of P1s", "Number of P2s", "Spearhead", "Superclass", "Ruby Ducks", "Integration"]);
+        this.sheetData.Add([null, "Number of P1s", "Number of P2s", "Spearhead", "Superclass", "The Wizards", "Integration"]);
         sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
         // Row 2 - Active Sprint tickets row
