@@ -22,6 +22,11 @@ internal class JiraQueryDynamicRunner(IJsonToJiraBasicTypeMapper jsonMapper, IAp
         }
 
         var json = JsonNode.Parse(result) ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
+        if (json["values"] is null)
+        {
+            return null;
+        }
+
         var pageValues = json["values"] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
         if (pageValues.AsArray().Count < 1)
         {

@@ -107,7 +107,7 @@ public class CalculateDailyReportTask(
         var agileSprint = await runner.GetCurrentSprintForBoard(teamConfig.BoardId);
         if (agileSprint == null)
         {
-            outputter.WriteLine($"Unable to pull current sprint for {teamConfig.TeamName}.");
+            outputter.WriteLine($"Unable to pull current sprint for {teamConfig.TeamName}. Likely no sprint is active.");
             return false;
         }
 
