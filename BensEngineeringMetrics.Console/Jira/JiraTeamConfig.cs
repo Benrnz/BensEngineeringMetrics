@@ -28,7 +28,7 @@ public static class JiraTeamConfig
     [
         new("Superclass", "Superclass Team", Constants.TeamSuperclass, 419, 40, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-superclass"),
         new("Phantom", "Phantom Team", Constants.TeamPhantom, 1211, 10, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), true, "eng-team-superclass"),
-        new("Wizards", "The Wizards Team", Constants.TeamWizards, 420, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-ruby-ducks"),
+        new("Wizards", "The Wizards Team", Constants.TeamWizards, 420, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-wizards"),
         new("Spearhead", "Spearhead Team", Constants.TeamSpearhead, 418, 70, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12), SlackChannel: "eng-team-spearhead"),
         new("Officetech", "Officetech Team", Constants.TeamOfficetech, 483, 45, Constants.OtPmJiraProjectKey, new DateOnly(2026, 1, 12), true, "eng-team-officetech"),
         new("Integration", "Integration Team", Constants.TeamIntegration, 450, 50, Constants.JavPmJiraProjectKey, new DateOnly(2026, 1, 12))
