@@ -1,4 +1,5 @@
 using System.Text;
+using BensEngineeringMetrics;
 using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
@@ -17,6 +18,7 @@ public class CalculateDailyReportTask(
     private const string KeyString = "DAILY";
     private const string DefaultSlackChannel = "Bens-Test-Channel";
     private const double TimeLimitInHours = 8.0;
+    private const double OverloadMarginMultiplier = 1.1;
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -142,7 +144,18 @@ public class CalculateDailyReportTask(
             $"    - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         outputter.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
-        var velocityMessage = totalStoryPoints > teamVelocity * 1.1 ? "SPRINT IS OVERLOADED" : string.Empty;
+
+        var velocityMessage = string.Empty;
+        if (agileSprint.EndDate != DateTimeOffset.MaxValue)
+        {
+            var workDaysRemaining = DateUtils.CountWeekdaysInclusive(DateTime.Today.ToDateOnly(), agileSprint.EndDate.ToDateOnly());
+            var allowedRemainingStoryPoints = workDaysRemaining * OverloadMarginMultiplier;
+            if (remainingStoryPoints > allowedRemainingStoryPoints)
+            {
+                velocityMessage = $"SPRINT IS OVERLOADED ({remainingStoryPoints}sp remaining, {workDaysRemaining}days remaining.";
+            }
+        }
+
         outputter.WriteLine($"Team Velocity is: {teamVelocity}. {velocityMessage}");
         outputter.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         if (ticketsFlagged > 0)

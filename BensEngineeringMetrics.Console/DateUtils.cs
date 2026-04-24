@@ -45,4 +45,27 @@ public static class DateUtils
     {
         return new DateOnly(dateTime.Year, dateTime.Month, dateTime.Day);
     }
+
+    /// <summary>
+    ///     Counts Monday–Friday inclusive between <paramref name="from" /> and <paramref name="to" />.
+    ///     Returns 0 when <paramref name="from" /> is after <paramref name="to" />.
+    /// </summary>
+    public static int CountWeekdaysInclusive(DateOnly from, DateOnly to)
+    {
+        if (from > to)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        for (var d = from; d <= to; d = d.AddDays(1))
+        {
+            if (d.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
 }
