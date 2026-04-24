@@ -149,10 +149,11 @@ public class CalculateDailyReportTask(
         if (agileSprint.EndDate != DateTimeOffset.MaxValue)
         {
             var workDaysRemaining = DateUtils.CountWeekdaysInclusive(DateTime.Today.ToDateOnly(), agileSprint.EndDate.ToDateOnly());
-            var allowedRemainingStoryPoints = workDaysRemaining * OverloadMarginMultiplier;
-            if (remainingStoryPoints > allowedRemainingStoryPoints)
+            var remainingRatio = workDaysRemaining / 10D; // Ten day sprint.
+            var remainingVelocity = teamVelocity * remainingRatio;
+            if (remainingStoryPoints > remainingVelocity * OverloadMarginMultiplier)
             {
-                velocityMessage = $"SPRINT IS OVERLOADED ({remainingStoryPoints}sp remaining, {workDaysRemaining}days remaining.";
+                velocityMessage = $"SPRINT IS OVERLOADED ({remainingStoryPoints}sp remaining, {workDaysRemaining}days remaining, {remainingVelocity:F1}sp remaining capacity).";
             }
         }
 
