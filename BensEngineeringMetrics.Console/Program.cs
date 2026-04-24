@@ -23,8 +23,7 @@ public static class Program
             services.AddTransient<IWorkSheetUpdater, GoogleSheetUpdater>();
             services.AddTransient<IWorkSheetReader, GoogleSheetReader>();
             services.AddSingleton<BugStatsWorker>();
-            services.AddSingleton<BugStatsWorkerNzb>();
-            services.AddSingleton<BugStatsWorkerEnvest>();
+            services.AddSingleton<BugStatsCustomerWorker>();
             services.AddTransient<ISlackClient, SlackClient>();
             services.AddTransient<ISheetPieChart, GooglePieChart>();
             services.AddSingleton<IJiraIssueRepository, JiraIssueRepository>();
