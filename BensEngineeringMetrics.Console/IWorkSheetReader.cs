@@ -6,4 +6,6 @@ public interface IWorkSheetReader
     Task<IEnumerable<string>> GetSheetNames();
     Task Open(string sheetId);
     Task<List<List<object>>> ReadData(string sheetAndRange);
+    Task<double?> ReadDouble(string sheetAndRange);
+    Task<string?> ReadString(string sheetAndRange);
 }

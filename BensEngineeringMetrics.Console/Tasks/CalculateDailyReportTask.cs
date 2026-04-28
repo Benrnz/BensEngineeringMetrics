@@ -1,5 +1,4 @@
 using System.Text;
-using BensEngineeringMetrics;
 using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
@@ -17,7 +16,6 @@ public class CalculateDailyReportTask(
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
     private const string DefaultSlackChannel = "Bens-Test-Channel";
-    private const double TimeLimitInHours = 8.0;
     private const double OverloadMarginMultiplier = 1.1;
 
     private static readonly IFieldMapping[] Fields =
@@ -34,6 +32,8 @@ public class CalculateDailyReportTask(
         JiraFields.BugType
     ];
 
+    private double timeLimitInHours = 8.0;
+
     public string Key => KeyString;
     public string Description => "Calculate the _daily_ stats for the daily report for the two teams involved.";
 
@@ -41,6 +41,8 @@ public class CalculateDailyReportTask(
     {
         outputter.WriteLine($"{Key} - {Description}");
         await sheetReader.Open(GoogleSheetId);
+        this.timeLimitInHours = await sheetReader.ReadDouble("'Info'!B4") ?? this.timeLimitInHours;
+        outputter.WriteLine($"Time limit for daily report is {this.timeLimitInHours} hours.");
         outputter.ResetBuffer();
         var updateCounter = 0;
 
@@ -203,7 +205,7 @@ public class CalculateDailyReportTask(
 
         if (DateTime.TryParse(headerRow[7].ToString(), out var sheetUpdate))
         {
-            return (DateTime.Now - sheetUpdate).TotalHours > TimeLimitInHours;
+            return (DateTime.Now - sheetUpdate).TotalHours > this.timeLimitInHours;
         }
 
         return true;

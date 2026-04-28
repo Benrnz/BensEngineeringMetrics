@@ -34,6 +34,33 @@ public class GoogleSheetReader(IOutputter outputter) : IWorkSheetReader
         }
     }
 
+    public async Task<double?> ReadDouble(string sheetAndRange)
+    {
+        var dataArray = await ReadData(sheetAndRange);
+        if (dataArray.Count == 0 || dataArray[0].Count == 0)
+        {
+            return null;
+        }
+
+        if (double.TryParse((string)dataArray[0][0], out var hours))
+        {
+            return hours;
+        }
+
+        return null;
+    }
+
+    public async Task<string?> ReadString(string sheetAndRange)
+    {
+        var dataArray = await ReadData(sheetAndRange);
+        if (dataArray.Count == 0 || dataArray[0].Count == 0)
+        {
+            return null;
+        }
+
+        return (string)dataArray[0][0];
+    }
+
     public async Task Open(string sheetId)
     {
         this.googleSheetId = sheetId ?? throw new ArgumentNullException(nameof(sheetId));
