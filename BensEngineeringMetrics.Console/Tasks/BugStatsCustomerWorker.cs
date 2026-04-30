@@ -1,11 +1,12 @@
-﻿using System.Text;
+using System.Text;
 using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, IOutputter outputter)
+public sealed record BugStatsCustomerProfile(string CustomerFilter, string ExportLabel);
+
+public class BugStatsCustomerWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, IOutputter outputter)
 {
-    private const string CustomerFilter = """AND "Customer/s (Multi Select)[Select List (multiple choices)]" = NZbrokers """;
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -29,14 +30,16 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
     private List<string> allCodeAreas = new();
     private string keyString = string.Empty;
 
-    public async Task UpdateSheet(string jiraProjectKey, string googleSheetId)
+    private BugStatsCustomerProfile profile = null!;
+
+    public async Task UpdateSheet(string jiraProjectKey, string googleSheetId, BugStatsCustomerProfile customerProfile)
     {
+        this.profile = customerProfile;
         try
         {
             this.keyString = jiraProjectKey;
-            var jql = $"""project = {jiraProjectKey} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M") {CustomerFilter}""";
+            var jql = $"""project = {jiraProjectKey} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M") {this.profile.CustomerFilter}""";
             outputter.WriteLine(jql);
-            outputter.WriteLine();
             var jiras = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields))
                 .Select(CreateJiraIssue)
                 .OrderBy(i => i.Created)
@@ -121,7 +124,7 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-Categories");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-{this.profile.ExportLabel}-Categories");
         var fileName = exporter.Export(bugCounts, SerialiseCatergoriesHeaderRow, SerialiseToCsv);
 
         await sheetUpdater.ImportFile("'ProductCategories'!A1", fileName);
@@ -145,7 +148,7 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-Areas");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-{this.profile.ExportLabel}-Areas");
         var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
 
         await sheetUpdater.ImportFile("'CodeAreas'!A1", fileName);
@@ -169,7 +172,7 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-RecentDev");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-{this.profile.ExportLabel}-RecentDev");
         var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
         await sheetUpdater.ImportFile("'RecentDev'!A1", fileName);
     }
@@ -177,7 +180,7 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
     private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
     {
         var chartData = new List<LayeredBarChartData>();
-        var jql = $"""project = {this.keyString} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done {CustomerFilter} """;
+        var jql = $"""project = {this.keyString} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done {this.profile.CustomerFilter} """;
         outputter.WriteLine(jql);
         var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         foreach (var totalChartDataMonth in severityTotals)
@@ -192,7 +195,7 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
             chartData.Add(row);
         }
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-ReportVsBacklog");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-{this.profile.ExportLabel}-ReportVsBacklog");
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported (Left Axis),,,Ticket Backlog (Right Axis)\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
         await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1", fileName);
@@ -209,7 +212,7 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
              AND Severity IN (Critical, Major)
              AND "Bug Type[Dropdown]" IN (Production, UAT)
              AND resolutiondate >= startOfMonth("-13M")
-             {CustomerFilter}
+             {this.profile.CustomerFilter}
              ORDER BY resolutiondate
              """;
         outputter.WriteLine(jql);
@@ -226,21 +229,19 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
             chartData.Add(row);
         }
 
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-ReportVsResolved");
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-{this.profile.ExportLabel}-ReportVsResolved");
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported (Left Axis),,,Resolved Bugs (Right Axis)\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
         await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1", fileName);
     }
 
-    private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
+    private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras)
     {
         var currentMonth = CalculateStartDate();
         var bugCounts = new List<BarChartData>();
         do
         {
-            var filteredList = customerFilter is null
-                ? jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList()
-                : jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1) && i.Customer.Contains(customerFilter)).ToList();
+            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
             // ReSharper disable InconsistentNaming
             var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
             var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
@@ -250,13 +251,9 @@ public class BugStatsWorkerNzb(IJiraQueryRunner runner, ICsvExporter exporter, I
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        if (customerFilter is null)
-        {
-            // Only update the master Severities total sheet if we're running without a specific customer filter.
-            exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-NZb-Severities");
-            var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
-            await sheetUpdater.ImportFile("'Severities'!A1", fileName);
-        }
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-{this.profile.ExportLabel}-Severities");
+        var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
+        await sheetUpdater.ImportFile("'Severities'!A1", fileName);
 
         return bugCounts;
     }
