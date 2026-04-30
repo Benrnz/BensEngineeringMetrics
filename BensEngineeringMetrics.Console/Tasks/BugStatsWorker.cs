@@ -64,13 +64,13 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             var monthTotalsForSeverities = await ExportBugStatsSeverities(jiras);
             await ExportBugStatsReportedVsBacklog(monthTotalsForSeverities);
             await ExportBugStatsReportedVsResolved(monthTotalsForSeverities);
-            var jirasExclEnvest = (
-                    await runner.SearchJiraIssuesWithJqlAsync(jql + """ AND "Customer/s (Multi Select)[Select List (multiple choices)]" != Envest AND "Exalate[Short text]" !~ Envest """, Fields)
-                )
-                .Select(CreateJiraIssue)
-                .OrderBy(i => i.Created)
-                .ToList();
-            await ExportBugStatsEnvestSeverities(jirasExclEnvest);
+            // var jirasExclEnvest = (
+            //         await runner.SearchJiraIssuesWithJqlAsync(jql + """ AND "Customer/s (Multi Select)[Select List (multiple choices)]" != Envest AND "Exalate[Short text]" !~ Envest """, Fields)
+            //     )
+            //     .Select(CreateJiraIssue)
+            //     .OrderBy(i => i.Created)
+            //     .ToList();
+            await ExportBugStatsEnvestSeverities(jiras);
             await ExportBugStatsCategories(jiras);
             sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         }
@@ -118,7 +118,8 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             JiraFields.Resolution.Parse(i),
             JiraFields.CodeAreaParent.Parse(i),
             JiraFields.CodeArea.Parse(i),
-            JiraFields.CustomersMultiSelect.Parse(i) ?? string.Empty);
+            JiraFields.CustomersMultiSelect.Parse(i) ?? string.Empty,
+            JiraFields.Exalate.Parse(i) ?? string.Empty);
         return typedIssue;
     }
 
@@ -198,7 +199,11 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras)
     {
-        var envestChartData = await ExportBugStatsSeverities(jiras, false);
+        // Redo severities graph excluding any ticket for Envest. To show non-Envest P1s P2s etc.
+        var filteredList = jiras.Where(i => string.IsNullOrWhiteSpace(i.Customer) || !i.Customer.Contains(Constants.Envest))
+            .Where(i => string.IsNullOrWhiteSpace(i.Exalate) || !i.Exalate.Contains(Constants.Envest))
+            .ToList();
+        var envestChartData = await ExportBugStatsSeverities(filteredList, false);
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-SeveritiesEnvest");
         var fileName = exporter.Export(envestChartData, overrideSerialiseRecord: SerialiseToCsv);
         await sheetUpdater.ImportFile("'Excl.Envest'!A1", fileName);
@@ -485,5 +490,6 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         string? Resolution,
         string? CodeAreaParent,
         string? CodeArea,
-        string Customer);
+        string Customer,
+        string? Exalate);
 }
