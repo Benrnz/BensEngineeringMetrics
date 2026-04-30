@@ -25,12 +25,12 @@ public class BugStatsCustomerWorker(IJiraQueryRunner runner, ICsvExporter export
         JiraFields.CustomersMultiSelect
     ];
 
-    private BugStatsCustomerProfile profile = null!;
-
     private List<string> allCategories = new();
 
     private List<string> allCodeAreas = new();
     private string keyString = string.Empty;
+
+    private BugStatsCustomerProfile profile = null!;
 
     public async Task UpdateSheet(string jiraProjectKey, string googleSheetId, BugStatsCustomerProfile customerProfile)
     {
@@ -40,7 +40,6 @@ public class BugStatsCustomerWorker(IJiraQueryRunner runner, ICsvExporter export
             this.keyString = jiraProjectKey;
             var jql = $"""project = {jiraProjectKey} AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M") {this.profile.CustomerFilter}""";
             outputter.WriteLine(jql);
-            outputter.WriteLine();
             var jiras = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields))
                 .Select(CreateJiraIssue)
                 .OrderBy(i => i.Created)

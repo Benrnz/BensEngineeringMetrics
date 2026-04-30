@@ -23,8 +23,12 @@ public class ExportBugStatsTaskCustomers(BugStatsCustomerWorker bugStatsCustomer
         outputter.WriteLine($"{Key} - {Description}");
         outputter.WriteLine($"--------------------- {Constants.JavPmJiraProjectKey} ---------------------");
 
+        outputter.WriteLine();
+        outputter.WriteLine("NZ Brokers:");
         await bugStatsCustomerWorker.UpdateSheet(Constants.JavPmJiraProjectKey, NzbGoogleSheetId, NzbProfile);
 
+        outputter.WriteLine();
+        outputter.WriteLine("Envest:");
         await bugStatsCustomerWorker.UpdateSheet(Constants.JavPmJiraProjectKey, EnvestGoogleSheetId, EnvestProfile);
     }
 }
